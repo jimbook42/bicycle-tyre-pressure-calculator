@@ -5,7 +5,7 @@ import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { BIKE_ICON_SIZE, IconBike, RIDE_TYPE_ICON_SIZE, RideTypeIcon } from './icons'
 
-describe('raster icons', () => {
+describe('line icons', () => {
   let root: Root | null = null
   let host: HTMLDivElement | null = null
 
@@ -25,20 +25,23 @@ describe('raster icons', () => {
     })
   }
 
-  it('renders ride-type artwork tinted via mask and currentColor', () => {
-    renderIcon(createElement(RideTypeIcon, { type: 'road' }))
-    const el = host!.querySelector('span[aria-hidden]')
-    expect(el?.className).toContain('bg-current')
-    expect(el?.className).toContain(RIDE_TYPE_ICON_SIZE)
-    expect((el as HTMLElement)?.style.maskImage).toContain('/icons/ride-road.png')
-    expect((el as HTMLElement)?.style.maskMode).toBe('alpha')
+  it('draws each ride type as a currentColor line icon at the shared size', () => {
+    for (const type of ['road', 'gravel', 'commute', 'mixed'] as const) {
+      renderIcon(createElement(RideTypeIcon, { type }))
+      const svg = host!.querySelector('svg')
+      expect(svg?.className.baseVal || svg?.getAttribute('class')).toContain(RIDE_TYPE_ICON_SIZE)
+      expect(svg?.getAttribute('viewBox')).toBe('0 0 72 32')
+      const stroked = svg!.querySelector('[stroke="currentColor"]')
+      expect(stroked).toBeTruthy()
+      act(() => root?.unmount())
+      host?.remove()
+    }
   })
 
-  it('renders bike tile artwork at the larger bike size', () => {
+  it('draws the bike as a wider line icon', () => {
     renderIcon(createElement(IconBike, {}))
-    const el = host!.querySelector('span[aria-hidden]')
-    expect(el?.className).toContain('bg-current')
-    expect(el?.className).toContain(BIKE_ICON_SIZE)
-    expect((el as HTMLElement)?.style.maskImage).toContain('/icons/bike-road.png')
+    const svg = host!.querySelector('svg')
+    expect(svg?.className.baseVal || svg?.getAttribute('class')).toContain(BIKE_ICON_SIZE)
+    expect(svg?.querySelectorAll('circle').length).toBeGreaterThan(1)
   })
 })

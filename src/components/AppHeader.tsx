@@ -1,3 +1,4 @@
+import { AppLogo } from './AppLogo'
 import { IconSettings } from '../ui/icons'
 import { cardOuter } from '../ui/softUi'
 import { ThemeToggle } from './ThemeToggle'
@@ -12,11 +13,7 @@ export function AppHeader({ darkMode, onToggleDark, onOpenSettings }: AppHeaderP
   return (
     <header className="mb-6 flex items-center justify-between gap-3 px-4 pt-4">
       <div className="flex min-w-0 items-center gap-3">
-        <img
-          src="/favicon.svg"
-          alt=""
-          className="h-10 w-10 shrink-0 object-contain"
-        />
+        <AppLogo />
         <h1 className="truncate text-[15px] font-semibold leading-none tracking-tight">
           Bike Tyre Pressure
         </h1>

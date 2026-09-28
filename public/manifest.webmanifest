@@ -4,14 +4,20 @@
   "description": "Quick starting tyre pressures for your ride.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f3efe6",
-  "theme_color": "#f3efe6",
+  "background_color": "#121214",
+  "theme_color": "#121214",
   "icons": [
     {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/app-logo-dark.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/app-logo-light.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

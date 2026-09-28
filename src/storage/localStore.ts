@@ -69,7 +69,7 @@ export function defaultAppPersistence(): AppPersistence {
   const bike = createBikeProfile({ name: 'My bike' })
   return {
     version: 2,
-    darkMode: false,
+    darkMode: true,
     riderWeightKg: '75',
     bikes: [bike],
     selectedBikeId: bike.id,

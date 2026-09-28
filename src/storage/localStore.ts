@@ -5,6 +5,7 @@ import type {
   PressureUnit,
   RideFeedback,
   RideFeel,
+  RideHistoryRecord,
   StoredAppStateV1,
   TubeType,
   WeatherSettingsStored,
@@ -76,9 +77,12 @@ export function defaultAppPersistence(): AppPersistence {
     gravelPercent: '30',
     packWeightKg: '0',
     pressureUnit: 'psi',
+    weightUnit: 'kg',
+    temperatureUnit: 'celsius',
     advancedOpen: false,
     applyPersonalisation: true,
     feedback: [],
+    rideHistory: [],
     weather: defaultWeatherSettings(),
   }
 }
@@ -116,9 +120,12 @@ export function migrateFromV1(legacy: StoredAppStateV1): AppPersistence {
     gravelPercent: legacy.gravelPercent ?? defaults.gravelPercent,
     packWeightKg: legacy.packWeightKg ?? defaults.packWeightKg,
     pressureUnit: (legacy.pressureUnit ?? defaults.pressureUnit) as PressureUnit,
+    weightUnit: defaults.weightUnit,
+    temperatureUnit: defaults.temperatureUnit,
     advancedOpen: legacy.advancedOpen ?? defaults.advancedOpen,
     applyPersonalisation: true,
     feedback: [],
+    rideHistory: [],
     weather: defaultWeatherSettings(),
   }
 }
@@ -180,6 +187,63 @@ function normalizeFeedback(raw: unknown): RideFeedback[] {
       notes: typeof record.notes === 'string' ? record.notes : '',
       weatherLocationLabel:
         typeof record.weatherLocationLabel === 'string' ? record.weatherLocationLabel : undefined,
+      rideHistoryId:
+        typeof record.rideHistoryId === 'string' ? record.rideHistoryId : undefined,
+    })
+  }
+  return kept
+}
+
+function normalizeRideHistory(raw: unknown): RideHistoryRecord[] {
+  if (!Array.isArray(raw)) return []
+  const kept: RideHistoryRecord[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const record = item as Partial<RideHistoryRecord>
+    if (typeof record.id !== 'string' || typeof record.setupKey !== 'string') continue
+    if (
+      typeof record.recommendedFrontKpa !== 'number' ||
+      typeof record.recommendedRearKpa !== 'number'
+    ) {
+      continue
+    }
+    const baselineFrontKpa =
+      typeof record.baselineFrontKpa === 'number'
+        ? record.baselineFrontKpa
+        : record.recommendedFrontKpa
+    const baselineRearKpa =
+      typeof record.baselineRearKpa === 'number'
+        ? record.baselineRearKpa
+        : record.recommendedRearKpa
+    kept.push({
+      id: record.id,
+      calculatedAt:
+        typeof record.calculatedAt === 'string' ? record.calculatedAt : new Date(0).toISOString(),
+      bikeId: typeof record.bikeId === 'string' ? record.bikeId : '',
+      bikeName: typeof record.bikeName === 'string' ? record.bikeName : 'Bike',
+      setupKey: record.setupKey,
+      rideType: record.rideType ?? 'road',
+      gravelPercent: typeof record.gravelPercent === 'number' ? record.gravelPercent : 0,
+      riderWeightKg: typeof record.riderWeightKg === 'number' ? record.riderWeightKg : 0,
+      packWeightKg: typeof record.packWeightKg === 'number' ? record.packWeightKg : 0,
+      systemWeightKg: typeof record.systemWeightKg === 'number' ? record.systemWeightKg : 0,
+      tubeType: (record.tubeType ?? 'tubeless') as TubeType,
+      frontWidthMm: typeof record.frontWidthMm === 'number' ? record.frontWidthMm : 0,
+      rearWidthMm: typeof record.rearWidthMm === 'number' ? record.rearWidthMm : 0,
+      recommendedFrontKpa: record.recommendedFrontKpa,
+      recommendedRearKpa: record.recommendedRearKpa,
+      baselineFrontKpa,
+      baselineRearKpa,
+      pressureUnit: (record.pressureUnit ?? 'psi') as PressureUnit,
+      locationLabel: typeof record.locationLabel === 'string' ? record.locationLabel : undefined,
+      rideTimingLine:
+        typeof record.rideTimingLine === 'string' ? record.rideTimingLine : undefined,
+      temperatureSummary:
+        typeof record.temperatureSummary === 'string' ? record.temperatureSummary : undefined,
+      weatherCondition:
+        typeof record.weatherCondition === 'string' ? record.weatherCondition : undefined,
+      wetMode: record.wetMode,
+      feedbackId: typeof record.feedbackId === 'string' ? record.feedbackId : undefined,
     })
   }
   return kept
@@ -253,6 +317,14 @@ export function normalizeAppPersistence(raw: unknown): AppPersistence {
     packWeightKg:
       typeof data.packWeightKg === 'string' ? data.packWeightKg : defaults.packWeightKg,
     pressureUnit: (data.pressureUnit ?? defaults.pressureUnit) as PressureUnit,
+    weightUnit:
+      data.weightUnit === 'lb' || data.weightUnit === 'kg'
+        ? data.weightUnit
+        : defaults.weightUnit,
+    temperatureUnit:
+      data.temperatureUnit === 'fahrenheit' || data.temperatureUnit === 'celsius'
+        ? data.temperatureUnit
+        : defaults.temperatureUnit,
     advancedOpen:
       typeof data.advancedOpen === 'boolean' ? data.advancedOpen : defaults.advancedOpen,
     applyPersonalisation:
@@ -260,6 +332,7 @@ export function normalizeAppPersistence(raw: unknown): AppPersistence {
         ? data.applyPersonalisation
         : defaults.applyPersonalisation,
     feedback: normalizeFeedback(data.feedback),
+    rideHistory: normalizeRideHistory(data.rideHistory),
     weather: normalizeWeather(data.weather),
   }
 }

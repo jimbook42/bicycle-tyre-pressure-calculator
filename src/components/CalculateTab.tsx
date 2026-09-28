@@ -1,5 +1,7 @@
+import { formatWeightFromKg } from '../calculator/displayUnits'
 import { parseNum } from '../calculator/buildInput'
-import type { AppPersistence, BikeProfile, RideType } from '../types'
+import type { AppPersistence, BikeProfile, RideType, WeightDisplayUnit } from '../types'
+import { RideTypeIcon } from '../ui/icons'
 import { WeatherSection } from './WeatherSection'
 import type { SessionCoordinates } from '../weather/rideWeatherService'
 import type { WeatherPreviewModel } from '../weather/weatherPreview'
@@ -34,11 +36,13 @@ interface CalculateTabProps {
   state: AppPersistence
   selectedBike: BikeProfile
   riderKg: number
+  weightUnit: WeightDisplayUnit
   error: string | null
   calculating: boolean
   canCalculate: boolean
   weather: WeatherSettingsStored
   deviceCoords: SessionCoordinates | null
+  deviceLocating: boolean
   deviceError: string | null
   suggestions: GeoPlace[]
   searchStatus: 'idle' | 'loading' | 'results' | 'empty' | 'error'
@@ -49,24 +53,23 @@ interface CalculateTabProps {
   onPackWeight: (v: string) => void
   onRideType: (v: RideType) => void
   onGravelPercent: (v: string) => void
-  onSelectBike: (bikeId: string) => void
   onPatchWeather: (patch: Partial<WeatherSettingsStored>) => void
   onUseMyLocation: () => void
   onSelectPlace: (place: GeoPlace) => void
   onCalculate: () => void
-  onLogFeedback: () => void
-  showFeedbackLink: boolean
 }
 
 export function CalculateTab({
   state,
   selectedBike,
   riderKg,
+  weightUnit,
   error,
   calculating,
   canCalculate,
   weather,
   deviceCoords,
+  deviceLocating,
   deviceError,
   suggestions,
   searchStatus,
@@ -77,17 +80,14 @@ export function CalculateTab({
   onPackWeight,
   onRideType,
   onGravelPercent,
-  onSelectBike,
   onPatchWeather,
   onUseMyLocation,
   onSelectPlace,
   onCalculate,
-  onLogFeedback,
-  showFeedbackLink,
 }: CalculateTabProps) {
   return (
     <form
-      className={`space-y-4 p-4 pb-24 ${cardOuter}`}
+      className={`mx-4 space-y-4 pb-4 ${cardOuter}`}
       onSubmit={(e) => {
         e.preventDefault()
         onCalculate()
@@ -95,10 +95,10 @@ export function CalculateTab({
     >
       <section className={`space-y-2 p-3 ${cardInner}`}>
         <div className="flex items-start justify-between gap-2">
-          <div>
+          <div className="min-w-0">
             <p className={`text-xs font-medium uppercase tracking-wide ${mutedText}`}>Bike</p>
-            <p className="text-sm font-medium">{selectedBike.name}</p>
-            <p className={`text-sm ${mutedText}`}>
+            <p className="truncate text-sm font-medium">{selectedBike.name}</p>
+            <p className={`truncate text-sm ${mutedText}`}>
               {selectedBike.frontWidthMm} / {selectedBike.rearWidthMm} mm ·{' '}
               {tubeLabel(selectedBike.tubeType)}
             </p>
@@ -111,32 +111,16 @@ export function CalculateTab({
             Change bike
           </button>
         </div>
-        {state.bikes.length > 1 && (
-          <label className="block text-sm">
-            Switch bike
-            <select
-              className={fieldClassName}
-              value={state.selectedBikeId}
-              onChange={(e) => onSelectBike(e.target.value)}
-            >
-              {state.bikes.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
       </section>
 
       <section className={`flex items-center justify-between gap-2 p-3 ${cardInner}`}>
-        <div>
+        <div className="min-w-0">
           <p className={`text-xs font-medium uppercase tracking-wide ${mutedText}`}>Rider</p>
-          <p className="text-sm font-medium">{riderKg.toFixed(1)} kg</p>
+          <p className="text-sm font-medium">{formatWeightFromKg(riderKg, weightUnit)}</p>
         </div>
         <button
           type="button"
-          className={`text-sm font-medium underline ${mutedText}`}
+          className={`shrink-0 text-sm font-medium underline ${mutedText}`}
           onClick={() => onNavigate('rider')}
         >
           Change
@@ -152,10 +136,13 @@ export function CalculateTab({
               <button
                 key={opt.value}
                 type="button"
-                className={state.rideType === opt.value ? pillActive : pillIdle}
+                className={`flex min-w-0 items-center justify-center gap-1.5 px-2 py-2 text-xs sm:text-sm ${
+                  state.rideType === opt.value ? pillActive : pillIdle
+                }`}
                 onClick={() => onRideType(opt.value)}
               >
-                {opt.label}
+                <RideTypeIcon type={opt.value} className="h-4 w-4 shrink-0" />
+                <span className="truncate">{opt.label}</span>
               </button>
             ))}
           </div>
@@ -200,6 +187,7 @@ export function CalculateTab({
       <WeatherSection
         weather={weather}
         deviceCoords={deviceCoords}
+        deviceLocating={deviceLocating}
         deviceError={deviceError}
         suggestions={suggestions}
         searchStatus={searchStatus}
@@ -220,18 +208,6 @@ export function CalculateTab({
       {!canCalculate && (
         <p className={`text-center text-sm ${mutedText}`}>
           Add rider weight and bike details to calculate.
-        </p>
-      )}
-
-      {showFeedbackLink && (
-        <p className="text-center">
-          <button
-            type="button"
-            className={`text-sm font-medium underline ${mutedText}`}
-            onClick={onLogFeedback}
-          >
-            Log ride feedback
-          </button>
         </p>
       )}
     </form>

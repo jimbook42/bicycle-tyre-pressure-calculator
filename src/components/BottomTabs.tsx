@@ -1,6 +1,6 @@
 import { cardOuter, pillActive, pillIdle } from '../ui/softUi'
 
-export type AppTab = 'calculate' | 'bikes' | 'rider' | 'feedback' | 'settings'
+export type AppTab = 'calculate' | 'bikes' | 'rider' | 'feedback'
 
 interface BottomTabsProps {
   active: AppTab
@@ -13,7 +13,6 @@ const TABS: { id: AppTab; label: string; countKey?: 'feedback' }[] = [
   { id: 'bikes', label: 'Bikes' },
   { id: 'rider', label: 'Rider' },
   { id: 'feedback', label: 'Feedback', countKey: 'feedback' },
-  { id: 'settings', label: 'Settings' },
 ]
 
 export function BottomTabs({ active, feedbackCount, onChange }: BottomTabsProps) {
@@ -28,7 +27,7 @@ export function BottomTabs({ active, feedbackCount, onChange }: BottomTabsProps)
           <button
             key={tab.id}
             type="button"
-            className={`flex-1 px-1 py-2 text-[11px] sm:text-xs ${active === tab.id ? pillActive : pillIdle}`}
+            className={`min-w-0 flex-1 truncate px-1 py-2 text-[11px] sm:text-xs ${active === tab.id ? pillActive : pillIdle}`}
             onClick={() => onChange(tab.id)}
           >
             {tab.label}

@@ -4,12 +4,14 @@ import {
   inchesFromWheelSizeId,
   parseStoredWheelDiameterInches,
 } from '../data/wheelSizes'
+import { IconBike, IconInfo, IconPlus } from '../ui/icons'
 import {
   btnRaised,
   cardInner,
   cardOuter,
   fieldClassName,
   mutedText,
+  pillActive,
   sectionTitle,
 } from '../ui/softUi'
 
@@ -26,6 +28,12 @@ interface BikesTabProps {
 
 const MEASURED_WIDTH_HELP =
   'Actual width of the inflated tyre on your wheel. Rim width can make a tyre measure wider or narrower than its labelled size.'
+
+function tubeLabel(tube: BikeProfile['tubeType']): string {
+  if (tube === 'tubeless') return 'Tubeless'
+  if (tube === 'tpu') return 'TPU'
+  return 'Butyl'
+}
 
 export function BikesTab({
   state,
@@ -51,34 +59,49 @@ export function BikesTab({
   }
 
   return (
-    <section className={`space-y-4 p-4 ${cardOuter}`}>
+    <section className={`space-y-4 p-4 pb-24 ${cardOuter}`}>
       <h2 className={sectionTitle}>Bikes</h2>
-      <div className={`space-y-3 p-3 ${cardInner}`}>
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="min-w-[10rem] flex-1 text-sm">
-            Active bike
-            <select
-              className={fieldClassName}
-              value={state.selectedBikeId}
-              onChange={(e) => onSelectBike(e.target.value)}
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
+        {state.bikes.map((bike) => {
+          const active = bike.id === state.selectedBikeId
+          return (
+            <button
+              key={bike.id}
+              type="button"
+              className={`min-w-0 text-left p-3 ${cardInner} ${active ? pillActive : ''}`}
+              onClick={() => onSelectBike(bike.id)}
             >
-              {state.bikes.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button type="button" className={btnRaised} onClick={onAddBike}>
-            Add bike
-          </button>
+              <IconBike className="mb-2 h-6 w-6 opacity-80" />
+              <p className="truncate text-sm font-medium">{bike.name}</p>
+              <p className={`truncate text-xs ${mutedText}`}>
+                {bike.frontWidthMm} / {bike.rearWidthMm} mm
+              </p>
+              <p className={`truncate text-xs ${mutedText}`}>{tubeLabel(bike.tubeType)}</p>
+              {active && <p className={`mt-2 text-xs font-medium ${mutedText}`}>Active</p>}
+            </button>
+          )
+        })}
+        <button
+          type="button"
+          className={`flex min-h-[7.5rem] min-w-0 flex-col items-center justify-center gap-2 p-3 ${cardInner}`}
+          onClick={onAddBike}
+        >
+          <IconPlus className="h-6 w-6 opacity-70" />
+          <span className="text-sm font-medium">Add new bike</span>
+        </button>
+      </div>
+
+      <div className={`space-y-3 p-3 ${cardInner}`}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-medium">Edit {selectedBike.name}</h3>
           <button
             type="button"
             className={`${btnRaised} text-[#a63d2a] disabled:opacity-40`}
             disabled={state.bikes.length <= 1}
             onClick={onDeleteBike}
           >
-            Delete
+            Delete bike
           </button>
         </div>
 
@@ -102,7 +125,7 @@ export function BikesTab({
         </label>
 
         <div className="grid grid-cols-2 gap-3">
-          <label className="text-sm">
+          <label className="min-w-0 text-sm">
             Front tyre width (mm)
             <input
               className={fieldClassName}
@@ -111,7 +134,7 @@ export function BikesTab({
               onChange={(e) => onPatchBike({ frontWidthMm: e.target.value })}
             />
           </label>
-          <label className="text-sm">
+          <label className="min-w-0 text-sm">
             Rear tyre width (mm)
             <input
               className={fieldClassName}
@@ -143,11 +166,15 @@ export function BikesTab({
           <summary className="cursor-pointer text-sm font-medium">Advanced setup (optional)</summary>
           <div className="mt-3 space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <label className="text-sm">
+              <label className="min-w-0 text-sm">
                 <span className="inline-flex items-center gap-1">
                   Front measured width (mm)
-                  <span className={`cursor-help text-xs ${mutedText}`} title={MEASURED_WIDTH_HELP}>
-                    ⓘ
+                  <span
+                    className={`cursor-help ${mutedText}`}
+                    title={MEASURED_WIDTH_HELP}
+                    aria-label={MEASURED_WIDTH_HELP}
+                  >
+                    <IconInfo />
                   </span>
                 </span>
                 <input
@@ -158,11 +185,15 @@ export function BikesTab({
                   }
                 />
               </label>
-              <label className="text-sm">
+              <label className="min-w-0 text-sm">
                 <span className="inline-flex items-center gap-1">
                   Rear measured width (mm)
-                  <span className={`cursor-help text-xs ${mutedText}`} title={MEASURED_WIDTH_HELP}>
-                    ⓘ
+                  <span
+                    className={`cursor-help ${mutedText}`}
+                    title={MEASURED_WIDTH_HELP}
+                    aria-label={MEASURED_WIDTH_HELP}
+                  >
+                    <IconInfo />
                   </span>
                 </span>
                 <input
@@ -175,7 +206,7 @@ export function BikesTab({
               </label>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <label className="text-sm">
+              <label className="min-w-0 text-sm">
                 Rim internal width (mm)
                 <input
                   className={fieldClassName}
@@ -185,7 +216,7 @@ export function BikesTab({
                   }
                 />
               </label>
-              <label className="text-sm">
+              <label className="min-w-0 text-sm">
                 Rim type
                 <select
                   className={fieldClassName}
@@ -241,7 +272,7 @@ export function BikesTab({
             <fieldset className="text-sm">
               <legend className="font-medium">Manufacturer limits (PSI)</legend>
               <div className="mt-2 grid grid-cols-2 gap-3">
-                <label>
+                <label className="min-w-0">
                   Front min
                   <input
                     className={fieldClassName}
@@ -249,7 +280,7 @@ export function BikesTab({
                     onChange={(e) => onPatchAdvanced({ frontMinPsi: e.target.value })}
                   />
                 </label>
-                <label>
+                <label className="min-w-0">
                   Front max
                   <input
                     className={fieldClassName}
@@ -257,7 +288,7 @@ export function BikesTab({
                     onChange={(e) => onPatchAdvanced({ frontMaxPsi: e.target.value })}
                   />
                 </label>
-                <label>
+                <label className="min-w-0">
                   Rear min
                   <input
                     className={fieldClassName}
@@ -265,7 +296,7 @@ export function BikesTab({
                     onChange={(e) => onPatchAdvanced({ rearMinPsi: e.target.value })}
                   />
                 </label>
-                <label>
+                <label className="min-w-0">
                   Rear max
                   <input
                     className={fieldClassName}

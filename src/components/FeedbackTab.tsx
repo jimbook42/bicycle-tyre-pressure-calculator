@@ -1,16 +1,18 @@
 import { formatPressure, unitLabel } from '../calculator/units'
-import type { AppPersistence, PressureUnit, RideFeel } from '../types'
+import { rideTypeLabel, formatRecommendedPressures } from '../storage/rideHistory'
+import type { AppPersistence, PressureUnit, RideFeel, RideHistoryRecord } from '../types'
 import { btnRaised, cardInner, cardOuter, fieldClassName, mutedText, sectionTitle } from '../ui/softUi'
 
 interface FeedbackTabProps {
   state: AppPersistence
   unit: PressureUnit
+  selectedRideId: string | null
   actualFront: string
   actualRear: string
   rideFeel: RideFeel
   rideNote: string
   feedbackMessage: string | null
-  hasResult: boolean
+  onSelectRide: (rideId: string | null) => void
   onActualFront: (v: string) => void
   onActualRear: (v: string) => void
   onRideFeel: (v: RideFeel) => void
@@ -18,105 +20,160 @@ interface FeedbackTabProps {
   onSave: () => void
 }
 
+function formatRideDate(iso: string): string {
+  const d = new Date(iso)
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+}
+
+function rideSummaryLine(record: RideHistoryRecord): string {
+  const weather =
+    record.temperatureSummary ||
+    (record.weatherCondition ? record.weatherCondition : undefined)
+  const parts = [
+    rideTypeLabel(record.rideType),
+    `${record.frontWidthMm}/${record.rearWidthMm} mm`,
+  ]
+  if (weather) parts.push(weather.replace(/^[\d–]+°[CF]\s*·\s*/, ''))
+  return parts.join(' · ')
+}
+
 export function FeedbackTab({
   state,
   unit,
+  selectedRideId,
   actualFront,
   actualRear,
   rideFeel,
   rideNote,
   feedbackMessage,
-  hasResult,
+  onSelectRide,
   onActualFront,
   onActualRear,
   onRideFeel,
   onRideNote,
   onSave,
 }: FeedbackTabProps) {
+  const selectedRide =
+    selectedRideId != null
+      ? state.rideHistory.find((r) => r.id === selectedRideId) ?? null
+      : null
+  const displayUnit = selectedRide?.pressureUnit ?? unit
+
   return (
-    <div className={`space-y-4 p-4 ${cardOuter}`}>
+    <div className={`mx-4 space-y-4 pb-24 ${cardOuter}`}>
       <section className={`space-y-3 p-3 ${cardInner}`}>
-        <h2 className={sectionTitle}>Log ride feedback</h2>
-        {!hasResult && (
+        <h2 className={sectionTitle}>Recent rides</h2>
+        {state.rideHistory.length === 0 && (
           <p className={`text-sm ${mutedText}`}>
-            Calculate a pressure on the Calculate tab first, or enter the pressures you actually
-            rode.
+            Completed calculations will appear here so you can log how the ride felt and improve
+            personalisation on this device.
           </p>
         )}
-        <div className="grid grid-cols-2 gap-3">
-          <label className="text-sm">
-            Actual front ({unitLabel(unit)})
-            <input
-              className={fieldClassName}
-              inputMode="decimal"
-              value={actualFront}
-              onChange={(e) => onActualFront(e.target.value)}
-            />
-          </label>
-          <label className="text-sm">
-            Actual rear ({unitLabel(unit)})
-            <input
-              className={fieldClassName}
-              inputMode="decimal"
-              value={actualRear}
-              onChange={(e) => onActualRear(e.target.value)}
-            />
-          </label>
-        </div>
-        <label className="block text-sm">
-          How did it feel?
-          <select
-            className={fieldClassName}
-            value={rideFeel}
-            onChange={(e) => onRideFeel(e.target.value as RideFeel)}
-          >
-            <option value="too_hard">Too hard</option>
-            <option value="good">Good</option>
-            <option value="too_soft">Too soft</option>
-          </select>
-        </label>
-        <label className="block text-sm">
-          Notes (optional)
-          <input
-            className={fieldClassName}
-            value={rideNote}
-            onChange={(e) => onRideNote(e.target.value)}
-          />
-        </label>
-        {feedbackMessage && <p className={`text-sm ${mutedText}`}>{feedbackMessage}</p>}
-        <button type="button" className={btnRaised} onClick={onSave}>
-          Save ride note
-        </button>
-      </section>
-
-      <section className={`space-y-3 p-3 ${cardInner}`}>
-        <h2 className={sectionTitle}>Recent notes</h2>
-        <ul className="space-y-3 text-sm">
-          {state.feedback.length === 0 && <li className={mutedText}>No ride notes yet.</li>}
-          {state.feedback.slice(0, 20).map((entry) => (
-            <li key={entry.id} className="border-t border-[#e8e2d8] pt-2 dark:border-[#333]">
-              <p>
-                {new Date(entry.createdAt).toLocaleString()} · {entry.bikeName} · {entry.rideType}
-              </p>
-              <p className={mutedText}>
-                Recommended {formatPressure(entry.baselineFrontKpa, unit)}/
-                {formatPressure(entry.baselineRearKpa, unit)} {unitLabel(unit)} · rode{' '}
-                {formatPressure(entry.actualFrontKpa, unit)}/
-                {formatPressure(entry.actualRearKpa, unit)} ·{' '}
-                {entry.result === 'too_hard'
-                  ? 'Too hard'
-                  : entry.result === 'too_soft'
-                    ? 'Too soft'
-                    : 'Good'}
-              </p>
-              {entry.weatherLocationLabel && (
-                <p className={mutedText}>{entry.weatherLocationLabel}</p>
-              )}
-              {entry.notes && <p className={mutedText}>{entry.notes}</p>}
+        <ul className="space-y-2">
+          {state.rideHistory.slice(0, 20).map((ride) => (
+            <li key={ride.id}>
+              <button
+                type="button"
+                className={`w-full min-w-0 text-left p-3 ${cardInner} ${
+                  selectedRideId === ride.id ? 'ring-1 ring-[#c4b8a8] dark:ring-[#444]' : ''
+                }`}
+                onClick={() => onSelectRide(ride.id)}
+              >
+                <p className="text-sm font-medium">
+                  {formatRideDate(ride.calculatedAt)} ·{' '}
+                  <span className="font-normal">{ride.bikeName}</span>
+                </p>
+                <p className={`truncate text-xs ${mutedText}`}>{rideSummaryLine(ride)}</p>
+                <p className={`mt-1 text-xs ${mutedText}`}>
+                  Recommended: {formatRecommendedPressures(ride, displayUnit)}
+                  {ride.feedbackId ? ' · Feedback logged' : ''}
+                </p>
+              </button>
             </li>
           ))}
         </ul>
       </section>
+
+      {selectedRide && (
+        <section className={`space-y-3 p-3 ${cardInner}`}>
+          <h2 className={sectionTitle}>Log feedback</h2>
+          <p className={`text-sm ${mutedText}`}>
+            Recommended {formatRecommendedPressures(selectedRide, displayUnit)}. Enter the pressures
+            you actually rode — they can differ from the recommendation.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="min-w-0 text-sm">
+              Actual front ({unitLabel(displayUnit)})
+              <input
+                className={fieldClassName}
+                inputMode="decimal"
+                value={actualFront}
+                onChange={(e) => onActualFront(e.target.value)}
+              />
+            </label>
+            <label className="min-w-0 text-sm">
+              Actual rear ({unitLabel(displayUnit)})
+              <input
+                className={fieldClassName}
+                inputMode="decimal"
+                value={actualRear}
+                onChange={(e) => onActualRear(e.target.value)}
+              />
+            </label>
+          </div>
+          <label className="block text-sm">
+            How did it feel?
+            <select
+              className={fieldClassName}
+              value={rideFeel}
+              onChange={(e) => onRideFeel(e.target.value as RideFeel)}
+            >
+              <option value="too_hard">Too hard</option>
+              <option value="good">Good</option>
+              <option value="too_soft">Too soft</option>
+            </select>
+          </label>
+          <label className="block text-sm">
+            Notes (optional)
+            <input
+              className={fieldClassName}
+              value={rideNote}
+              onChange={(e) => onRideNote(e.target.value)}
+            />
+          </label>
+          {feedbackMessage && <p className={`text-sm ${mutedText}`}>{feedbackMessage}</p>}
+          <button type="button" className={btnRaised} onClick={onSave}>
+            Save ride note
+          </button>
+        </section>
+      )}
+
+      {state.feedback.length > 0 && (
+        <section className={`space-y-3 p-3 ${cardInner}`}>
+          <h2 className={sectionTitle}>Saved evidence</h2>
+          <ul className="space-y-3 text-sm">
+            {state.feedback.slice(0, 15).map((entry) => (
+              <li key={entry.id} className="border-t border-[#e8e2d8] pt-2 dark:border-[#333]">
+                <p className="truncate">
+                  {new Date(entry.createdAt).toLocaleString()} · {entry.bikeName} ·{' '}
+                  {entry.rideType}
+                </p>
+                <p className={`${mutedText} break-words`}>
+                  Recommended {formatPressure(entry.baselineFrontKpa, unit)}/
+                  {formatPressure(entry.baselineRearKpa, unit)} {unitLabel(unit)} · rode{' '}
+                  {formatPressure(entry.actualFrontKpa, unit)}/
+                  {formatPressure(entry.actualRearKpa, unit)} ·{' '}
+                  {entry.result === 'too_hard'
+                    ? 'Too hard'
+                    : entry.result === 'too_soft'
+                      ? 'Too soft'
+                      : 'Good'}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   )
 }

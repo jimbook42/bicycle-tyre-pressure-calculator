@@ -1,5 +1,9 @@
 export type PressureUnit = 'psi' | 'bar' | 'kPa'
 
+export type WeightDisplayUnit = 'kg' | 'lb'
+
+export type TemperatureDisplayUnit = 'celsius' | 'fahrenheit'
+
 export type RideType = 'road' | 'gravel' | 'commute' | 'mixed'
 
 export type TubeType = 'butyl' | 'tpu' | 'tubeless'
@@ -125,6 +129,37 @@ export interface RideFeedback {
   notes: string
   /** Human-readable location when weather was used; no precise coordinates stored. */
   weatherLocationLabel?: string
+  /** Links feedback to a completed calculation record when available. */
+  rideHistoryId?: string
+}
+
+/** Lightweight record of a completed pressure calculation for post-ride feedback. */
+export interface RideHistoryRecord {
+  id: string
+  calculatedAt: string
+  bikeId: string
+  bikeName: string
+  setupKey: string
+  rideType: RideType
+  gravelPercent: number
+  riderWeightKg: number
+  packWeightKg: number
+  systemWeightKg: number
+  tubeType: TubeType
+  frontWidthMm: number
+  rearWidthMm: number
+  recommendedFrontKpa: number
+  recommendedRearKpa: number
+  /** Scientific baseline (pre-weather display) for personalisation evidence. */
+  baselineFrontKpa: number
+  baselineRearKpa: number
+  pressureUnit: PressureUnit
+  locationLabel?: string
+  rideTimingLine?: string
+  temperatureSummary?: string
+  weatherCondition?: string
+  wetMode?: WeatherWetMode
+  feedbackId?: string
 }
 
 export type WeatherLocationMode = 'search' | 'device'
@@ -159,10 +194,13 @@ export interface AppPersistence {
   gravelPercent: string
   packWeightKg: string
   pressureUnit: PressureUnit
+  weightUnit: WeightDisplayUnit
+  temperatureUnit: TemperatureDisplayUnit
   advancedOpen: boolean
   /** When false, show the scientific baseline and ignore saved ride notes. */
   applyPersonalisation: boolean
   feedback: RideFeedback[]
+  rideHistory: RideHistoryRecord[]
   weather: WeatherSettingsStored
 }
 

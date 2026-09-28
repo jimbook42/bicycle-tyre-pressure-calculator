@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { weatherIconForCode } from './weatherIcons'
+import { weatherIconKindForCode } from './weatherIcons'
 
-describe('weatherIconForCode', () => {
+describe('weatherIconKindForCode', () => {
   it('maps clear and rain codes', () => {
-    expect(weatherIconForCode(0)).toBe('☀️')
-    expect(weatherIconForCode(61)).toBe('🌧️')
-    expect(weatherIconForCode(95)).toBe('⛈️')
+    expect(weatherIconKindForCode(0)).toBe('clear')
+    expect(weatherIconKindForCode(61)).toBe('rain')
+    expect(weatherIconKindForCode(95)).toBe('storm')
   })
 })

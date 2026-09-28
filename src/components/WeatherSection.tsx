@@ -8,6 +8,7 @@ import {
 } from '../weather/rideTimingUi'
 import type { GeoPlace } from '../weather/weatherProvider'
 import type { WeatherSettingsStored } from '../types'
+import { IconPin, WeatherIcon } from '../ui/icons'
 import {
   btnRaised,
   cardInner,
@@ -22,6 +23,7 @@ import {
 interface WeatherSectionProps {
   weather: WeatherSettingsStored
   deviceCoords: SessionCoordinates | null
+  deviceLocating: boolean
   deviceError: string | null
   suggestions: GeoPlace[]
   searchStatus: 'idle' | 'loading' | 'results' | 'empty' | 'error'
@@ -36,6 +38,7 @@ interface WeatherSectionProps {
 export function WeatherSection({
   weather,
   deviceCoords,
+  deviceLocating,
   deviceError,
   suggestions,
   searchStatus,
@@ -47,6 +50,10 @@ export function WeatherSection({
   onSelectPlace,
 }: WeatherSectionProps) {
   const later = isRideLater(weather)
+  const confirmedLocation =
+    weather.locationMode === 'device'
+      ? deviceCoords?.label
+      : weather.locationLabel || undefined
 
   return (
     <section className={`space-y-3 p-3 ${cardInner}`}>
@@ -58,7 +65,10 @@ export function WeatherSection({
           <button
             type="button"
             className={weather.locationMode === 'device' ? pillActive : pillIdle}
-            onClick={() => onPatch({ locationMode: 'device' })}
+            onClick={() => {
+              onPatch({ locationMode: 'device' })
+              onUseMyLocation()
+            }}
           >
             Use my location
           </button>
@@ -92,10 +102,10 @@ export function WeatherSection({
                   <li key={`${place.name}-${place.admin1 ?? ''}-${place.country ?? ''}`}>
                     <button
                       type="button"
-                      className="block w-full px-3 py-2 text-left text-sm hover:brightness-105"
+                      className="block w-full min-w-0 px-3 py-2 text-left text-sm hover:brightness-105"
                       onClick={() => onSelectPlace(place)}
                     >
-                      {formatPlaceLabel(place)}
+                      <span className="break-words">{formatPlaceLabel(place)}</span>
                     </button>
                   </li>
                 ))}
@@ -105,20 +115,33 @@ export function WeatherSection({
         )}
         {weather.locationMode === 'device' && (
           <div className="mt-2 space-y-1">
-            <button type="button" className={btnRaised} onClick={onUseMyLocation}>
-              Detect location
-            </button>
-            {deviceCoords && (
-              <p className={`text-xs ${mutedText}`}>Using: {deviceCoords.label}</p>
+            {deviceLocating && (
+              <p className={`text-xs ${mutedText}`} aria-live="polite">
+                Detecting location…
+              </p>
             )}
             {deviceError && <p className="text-xs text-[#a63d2a]">{deviceError}</p>}
+            {confirmedLocation && !deviceLocating && (
+              <p className={`flex min-w-0 items-start gap-1.5 text-sm ${mutedText}`}>
+                <IconPin className="mt-0.5 shrink-0" />
+                <span className="min-w-0 break-words">{confirmedLocation}</span>
+              </p>
+            )}
+            {!deviceLocating && !confirmedLocation && !deviceError && (
+              <button type="button" className={btnRaised} onClick={onUseMyLocation}>
+                Detect location
+              </button>
+            )}
             <p className={`text-xs ${mutedText}`}>
               Coordinates are not saved — only used for this session.
             </p>
           </div>
         )}
-        {weather.locationLabel && weather.locationMode === 'search' && (
-          <p className={`mt-1 text-xs ${mutedText}`}>Selected: {weather.locationLabel}</p>
+        {weather.locationMode === 'search' && confirmedLocation && (
+          <p className={`mt-2 flex min-w-0 items-start gap-1.5 text-sm ${mutedText}`}>
+            <IconPin className="mt-0.5 shrink-0" />
+            <span className="min-w-0 break-words">{confirmedLocation}</span>
+          </p>
         )}
       </fieldset>
 
@@ -151,7 +174,7 @@ export function WeatherSection({
 
       {later && (
         <div className="grid grid-cols-2 gap-3">
-          <label className="text-sm">
+          <label className="min-w-0 text-sm">
             Date
             <input
               type="date"
@@ -163,7 +186,7 @@ export function WeatherSection({
               }}
             />
           </label>
-          <label className="text-sm">
+          <label className="min-w-0 text-sm">
             Start time
             <input
               type="time"
@@ -260,21 +283,21 @@ export function WeatherSection({
 
       {(previewLoading || preview) && (
         <div className={`p-3 text-sm ${cardInner}`} aria-live="polite">
-          <div className="flex items-start gap-3">
+          <p className={`text-xs font-medium uppercase tracking-wide ${mutedText}`}>Weather preview</p>
+          <div className="mt-2 flex items-start gap-3">
             <span
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-[#fdfaf3] text-xl shadow-[8px_8px_16px_rgba(0,0,0,0.08),_-8px_-8px_16px_rgba(255,255,255,0.7)] dark:bg-[#1e1e20] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.5),_-8px_-8px_16px_rgba(255,255,255,0.05)]"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-[#fdfaf3] text-[#2b2825] shadow-[8px_8px_16px_rgba(0,0,0,0.08),_-8px_-8px_16px_rgba(255,255,255,0.7)] dark:bg-[#1e1e20] dark:text-[#e8e6e1] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.5),_-8px_-8px_16px_rgba(255,255,255,0.05)]"
               aria-hidden
             >
-              {preview?.weatherIcon ?? '🌡️'}
+              <WeatherIcon kind={preview?.weatherIconKind ?? 'unknown'} className="h-6 w-6" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate font-medium">{preview?.locationLabel || weather.locationLabel || 'Location'}</p>
               {preview && !preview.unavailable && !previewLoading && (
                 <>
-                  <p className="mt-1 font-medium text-[#2b2825] dark:text-[#e8e6e1]">
+                  <p className="font-medium text-[#2b2825] dark:text-[#e8e6e1]">
                     {preview.compactTempCondition}
                   </p>
-                  <p className={mutedText}>{preview.compactTimingLine}</p>
+                  <p className={`break-words ${mutedText}`}>{preview.compactTimingLine}</p>
                 </>
               )}
             </div>

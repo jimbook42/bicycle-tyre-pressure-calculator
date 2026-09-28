@@ -1,5 +1,7 @@
+import { formatTemperatureC, formatTemperatureRangeC } from '../calculator/displayUnits'
+import type { TemperatureDisplayUnit } from '../types'
 import type { WetMode } from '../calculator/weatherAdjustment'
-import { weatherIconForCode } from './weatherIcons'
+import { weatherIconKindForCode, type WeatherIconKind } from './weatherIcons'
 import { durationMinutesFromSettings } from './rideWeatherService'
 import { formatLaterWhenLabel, isRideLater } from './rideTimingUi'
 import type { ProcessedRideWeather } from './weatherProvider'
@@ -28,22 +30,22 @@ export function describeRidePlan(weather: WeatherSettingsStored): string {
   return `${when}${time} • ${duration}`
 }
 
-export function formatTemperatureWindow(weather: ProcessedRideWeather): string {
+export function formatTemperatureWindow(
+  weather: ProcessedRideWeather,
+  temperatureUnit: TemperatureDisplayUnit = 'celsius',
+): string {
   const min = weather.windowTempMinC
   const max = weather.windowTempMaxC
   if (min === undefined || max === undefined) {
-    return `${Math.round(weather.rideTempC)}°C`
+    return formatTemperatureC(weather.rideTempC, temperatureUnit)
   }
-  const low = Math.round(Math.min(min, max))
-  const high = Math.round(Math.max(min, max))
-  if (low === high) return `${low}°C`
-  return `${low}–${high}°C`
+  return formatTemperatureRangeC(min, max, temperatureUnit)
 }
 
 export interface WeatherPreviewModel {
   locationLabel: string
   plan: string
-  weatherIcon: string
+  weatherIconKind: WeatherIconKind
   temperatureLine: string
   rainLine: string
   wetLine: string
@@ -55,6 +57,7 @@ export interface WeatherPreviewModel {
 export function formatCompactWeatherSummary(
   settings: WeatherSettingsStored,
   processed: ProcessedRideWeather | null,
+  temperatureUnit: TemperatureDisplayUnit = 'celsius',
 ): { temperatureCondition: string; timingLine: string } {
   const minutes = durationMinutesFromSettings(settings)
   const duration =
@@ -69,7 +72,7 @@ export function formatCompactWeatherSummary(
   if (!processed?.available) {
     return { temperatureCondition: '—', timingLine }
   }
-  const temp = formatTemperatureWindow(processed)
+  const temp = formatTemperatureWindow(processed, temperatureUnit)
   const wet = wetAdjustmentApplies(processed.isWetForecast, settings.wetMode)
   const condition =
     settings.wetMode === 'dry'
@@ -88,14 +91,19 @@ export function formatCompactWeatherSummary(
 export function buildWeatherPreview(
   settings: WeatherSettingsStored,
   processed: ProcessedRideWeather | null,
+  temperatureUnit: TemperatureDisplayUnit = 'celsius',
 ): WeatherPreviewModel {
   const plan = describeRidePlan(settings)
   if (!processed?.available) {
-    const { temperatureCondition, timingLine } = formatCompactWeatherSummary(settings, null)
+    const { temperatureCondition, timingLine } = formatCompactWeatherSummary(
+      settings,
+      null,
+      temperatureUnit,
+    )
     return {
       locationLabel: settings.locationLabel || processed?.locationLabel || 'Location not selected',
       plan,
-      weatherIcon: '🌡️',
+      weatherIconKind: 'unknown',
       temperatureLine: '',
       rainLine: '',
       wetLine: '',
@@ -107,18 +115,22 @@ export function buildWeatherPreview(
   const wet = wetAdjustmentApplies(processed.isWetForecast, settings.wetMode)
   const nowBit =
     settings.timingMode === 'now' && processed.currentAmbientTempC !== undefined
-      ? `Now ${Math.round(processed.currentAmbientTempC)}°C • `
+      ? `Now ${formatTemperatureC(processed.currentAmbientTempC, temperatureUnit)} • `
       : ''
   const code = processed.dominantWeatherCode ?? 0
-  const { temperatureCondition, timingLine } = formatCompactWeatherSummary(settings, processed)
+  const { temperatureCondition, timingLine } = formatCompactWeatherSummary(
+    settings,
+    processed,
+    temperatureUnit,
+  )
   const compactTimingLine = isRideLater(settings)
     ? `${formatLaterWhenLabel(settings)} · ${timingLine.split(' · ').slice(-1)[0]}`
     : timingLine
   return {
     locationLabel: processed.locationLabel,
     plan,
-    weatherIcon: weatherIconForCode(code),
-    temperatureLine: `${nowBit}${formatTemperatureWindow(processed)}`,
+    weatherIconKind: weatherIconKindForCode(code),
+    temperatureLine: `${nowBit}${formatTemperatureWindow(processed, temperatureUnit)}`,
     rainLine: processed.isWetForecast ? 'Rain possible' : 'No rain in this ride window',
     wetLine: wet ? 'Wet adjustment: Applied' : 'Wet adjustment: Not applied',
     compactTempCondition: temperatureCondition,

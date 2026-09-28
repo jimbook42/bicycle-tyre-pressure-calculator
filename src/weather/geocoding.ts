@@ -34,3 +34,33 @@ export function formatPlaceLabel(place: GeoPlace): string {
   const parts = [place.name, place.admin1, place.country].filter(Boolean)
   return parts.join(', ')
 }
+
+const REVERSE_URL = 'https://geocoding-api.open-meteo.com/v1/reverse'
+
+export async function reverseGeocode(
+  latitude: number,
+  longitude: number,
+  fetchImpl: FetchLike = fetch.bind(globalThis),
+): Promise<GeoPlace | null> {
+  const url = `${REVERSE_URL}?latitude=${latitude}&longitude=${longitude}&language=en`
+  const response = await fetchImpl(url)
+  if (!response.ok) return null
+  const data = (await response.json()) as {
+    results?: Array<{
+      name: string
+      latitude: number
+      longitude: number
+      country?: string
+      admin1?: string
+    }>
+  }
+  const row = data.results?.[0]
+  if (!row) return null
+  return {
+    name: row.name,
+    latitude: row.latitude,
+    longitude: row.longitude,
+    country: row.country,
+    admin1: row.admin1,
+  }
+}

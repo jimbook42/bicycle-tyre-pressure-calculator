@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { buildCalculatorInput, parseNum } from './calculator/buildInput'
 import {
   personalisePressure,
@@ -22,12 +22,13 @@ import { FeedbackTab } from './components/FeedbackTab'
 import { PressureResultDial } from './components/PressureResultDial'
 import { RiderTab } from './components/RiderTab'
 import { ScienceModal } from './components/ScienceModal'
-import { SettingsTab } from './components/SettingsTab'
+import { SettingsPanel } from './components/SettingsPanel'
+import { reverseGeocode, formatPlaceLabel } from './weather/geocoding'
+import { createRideHistoryRecord, prependRideHistory } from './storage/rideHistory'
 import { fetchProcessedRideWeather, type SessionCoordinates } from './weather/rideWeatherService'
 import { createOpenMeteoProvider } from './weather/openMeteoProvider'
 import { scheduleLocationSearch } from './weather/locationSearch'
 import { buildWeatherPreview, type WeatherPreviewModel } from './weather/weatherPreview'
-import { formatPlaceLabel } from './weather/geocoding'
 import type { GeoPlace } from './weather/weatherProvider'
 import {
   addBike,
@@ -61,6 +62,7 @@ export default function App() {
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null)
   const [weatherOutcome, setWeatherOutcome] = useState<WeatherPressureOutcome | null>(null)
   const [deviceCoords, setDeviceCoords] = useState<SessionCoordinates | null>(null)
+  const [deviceLocating, setDeviceLocating] = useState(false)
   const [deviceError, setDeviceError] = useState<string | null>(null)
   const [selectedPlace, setSelectedPlace] = useState<SessionCoordinates | null>(null)
   const [suggestions, setSuggestions] = useState<GeoPlace[]>([])
@@ -71,6 +73,9 @@ export default function App() {
   const [calculating, setCalculating] = useState(false)
   const [activeTab, setActiveTab] = useState<AppTab>('calculate')
   const [scienceOpen, setScienceOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [selectedRideHistoryId, setSelectedRideHistoryId] = useState<string | null>(null)
+  const resultRef = useRef<HTMLElement | null>(null)
   const weatherProvider = useMemo(() => createOpenMeteoProvider(), [])
 
   const selectedBike = useMemo(() => getSelectedBike(state), [state])
@@ -185,28 +190,32 @@ export default function App() {
     fetchProcessedRideWeather(state.weather, deviceCoords, weatherProvider, new Date(), selectedPlace)
       .then((processed) => {
         if (cancelled) return
-        setPreview(buildWeatherPreview(state.weather, processed))
+        setPreview(buildWeatherPreview(state.weather, processed, state.temperatureUnit))
         setPreviewLoading(false)
       })
       .catch(() => {
         if (cancelled) return
         setPreview(
-          buildWeatherPreview(state.weather, {
-            available: false,
-            locationLabel: place.label,
-            rideTempC: 0,
-            isWetForecast: false,
-            providerId: weatherProvider.id,
-            attribution: '',
-            confidence: 'none',
-          }),
+          buildWeatherPreview(
+            state.weather,
+            {
+              available: false,
+              locationLabel: place.label,
+              rideTempC: 0,
+              isWetForecast: false,
+              providerId: weatherProvider.id,
+              attribution: '',
+              confidence: 'none',
+            },
+            state.temperatureUnit,
+          ),
         )
         setPreviewLoading(false)
       })
     return () => {
       cancelled = true
     }
-  }, [state.weather, deviceCoords, selectedPlace, weatherProvider])
+  }, [state.weather, state.temperatureUnit, deviceCoords, selectedPlace, weatherProvider])
 
   function useMyLocation() {
     setDeviceError(null)
@@ -215,15 +224,28 @@ export default function App() {
       setDeviceError('Geolocation is not available in this browser.')
       return
     }
+    setDeviceLocating(true)
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setDeviceCoords({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          label: 'Current location',
-        })
+      async (position) => {
+        const { latitude, longitude } = position.coords
+        let label = `Location detected (${latitude.toFixed(2)}, ${longitude.toFixed(2)})`
+        try {
+          const place = await reverseGeocode(latitude, longitude)
+          if (place) label = formatPlaceLabel(place)
+        } catch {
+          // keep coordinate fallback
+        }
+        setDeviceCoords({ latitude, longitude, label })
+        setApp((prev) => ({
+          ...prev,
+          weather: { ...prev.weather, enabled: true, locationLabel: label },
+        }))
+        setDeviceLocating(false)
       },
-      () => setDeviceError('Could not access your location.'),
+      () => {
+        setDeviceError('Could not access your location.')
+        setDeviceLocating(false)
+      },
       { maximumAge: 60_000, timeout: 15_000 },
     )
   }
@@ -337,10 +359,33 @@ export default function App() {
       setActualRear(formatPressure(shownRear, state.pressureUnit))
       setRideFeel('good')
       setRideNote('')
+
+      const historyRecord = createRideHistoryRecord({
+        state,
+        bike,
+        setupKey: key,
+        systemWeightKg: baseline.systemWeightKg,
+        result: baseline,
+        shownFrontKpa: shownFront,
+        shownRearKpa: shownRear,
+        locationLabel: processedWeather?.locationLabel || state.weather.locationLabel,
+        preview: buildWeatherPreview(state.weather, processedWeather, state.temperatureUnit),
+      })
+      setApp((prev) => prependRideHistory(prev, historyRecord))
+      setSelectedRideHistoryId(historyRecord.id)
     } finally {
       setCalculating(false)
     }
   }
+
+  useEffect(() => {
+    if (!result || !resultRef.current) return
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    resultRef.current.scrollIntoView({
+      behavior: reduceMotion ? 'auto' : 'smooth',
+      block: 'start',
+    })
+  }, [result])
 
   function evidenceKeyFor(app: AppPersistence, bike: BikeProfile, systemKg: number): string {
     const input = buildCalculatorInput(app, bike)
@@ -362,41 +407,64 @@ export default function App() {
   }
 
   function saveRideFeedback() {
-    if (!result) {
-      setFeedbackMessage('Calculate a pressure first, or open Calculate and run the calculator.')
+    const ride =
+      selectedRideHistoryId != null
+        ? state.rideHistory.find((r) => r.id === selectedRideHistoryId)
+        : null
+    if (!ride && !result) {
+      setFeedbackMessage('Select a recent ride or calculate a pressure first.')
       return
     }
+    const feedbackUnit = ride?.pressureUnit ?? state.pressureUnit
     const front = parseNum(actualFront, Number.NaN)
     const rear = parseNum(actualRear, Number.NaN)
     if (!(front > 0) || !(rear > 0)) {
       setFeedbackMessage('Enter the front and rear pressures you actually rode.')
       return
     }
-    const recordKey = evidenceKeyFor(state, selectedBike, result.systemWeightKg)
+    const baselineFrontKpa = ride?.baselineFrontKpa ?? result!.front.clampedKpa
+    const baselineRearKpa = ride?.baselineRearKpa ?? result!.rear.clampedKpa
+    const recordKey = ride?.setupKey ?? evidenceKeyFor(state, selectedBike, result!.systemWeightKg)
     const record = {
       id: createId(),
       createdAt: new Date().toISOString(),
-      bikeId: selectedBike.id,
-      bikeName: selectedBike.name,
+      bikeId: ride?.bikeId ?? selectedBike.id,
+      bikeName: ride?.bikeName ?? selectedBike.name,
       setupKey: recordKey,
-      rideType: state.rideType,
-      gravelPercent: parseNum(state.gravelPercent, 0),
-      systemWeightKg: result.systemWeightKg,
-      tubeType: selectedBike.tubeType,
-      frontWidthMm: parseNum(selectedBike.frontWidthMm),
-      rearWidthMm: parseNum(selectedBike.rearWidthMm),
-      baselineFrontKpa: result.front.clampedKpa,
-      baselineRearKpa: result.rear.clampedKpa,
-      actualFrontKpa: displayToKpa(front, state.pressureUnit),
-      actualRearKpa: displayToKpa(rear, state.pressureUnit),
+      rideType: ride?.rideType ?? state.rideType,
+      gravelPercent: ride?.gravelPercent ?? parseNum(state.gravelPercent, 0),
+      systemWeightKg: ride?.systemWeightKg ?? result!.systemWeightKg,
+      tubeType: ride?.tubeType ?? selectedBike.tubeType,
+      frontWidthMm: ride?.frontWidthMm ?? parseNum(selectedBike.frontWidthMm),
+      rearWidthMm: ride?.rearWidthMm ?? parseNum(selectedBike.rearWidthMm),
+      baselineFrontKpa,
+      baselineRearKpa,
+      actualFrontKpa: displayToKpa(front, feedbackUnit),
+      actualRearKpa: displayToKpa(rear, feedbackUnit),
       result: rideFeel,
       notes: rideNote.trim(),
-      weatherLocationLabel: weatherOutcome?.active
-        ? state.weather.locationLabel || undefined
-        : undefined,
+      weatherLocationLabel:
+        ride?.locationLabel ?? (state.weather.locationLabel || undefined),
+      rideHistoryId: ride?.id,
     }
-    setApp((prev) => ({ ...prev, feedback: [record, ...prev.feedback] }))
+    setApp((prev) => ({
+      ...prev,
+      feedback: [record, ...prev.feedback],
+      rideHistory: prev.rideHistory.map((r) =>
+        r.id === ride?.id ? { ...r, feedbackId: record.id } : r,
+      ),
+    }))
     setFeedbackMessage('Ride note saved on this device.')
+  }
+
+  function openFeedbackForLatest() {
+    if (state.rideHistory[0]) {
+      setSelectedRideHistoryId(state.rideHistory[0].id)
+      const ride = state.rideHistory[0]
+      setActualFront(formatPressure(ride.recommendedFrontKpa, ride.pressureUnit))
+      setActualRear(formatPressure(ride.recommendedRearKpa, ride.pressureUnit))
+    }
+    setActiveTab('feedback')
   }
 
   const canCalculate = buildCalculatorInput(state, selectedBike) !== null
@@ -407,8 +475,22 @@ export default function App() {
       <AppHeader
         darkMode={state.darkMode}
         onToggleDark={() => updateApp('darkMode', !state.darkMode)}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
       <ScienceModal open={scienceOpen} onClose={() => setScienceOpen(false)} />
+      <SettingsPanel
+        open={settingsOpen}
+        state={state}
+        onClose={() => setSettingsOpen(false)}
+        onPressureUnit={(u) => updateApp('pressureUnit', u)}
+        onWeightUnit={(u) => updateApp('weightUnit', u)}
+        onTemperatureUnit={(u) => updateApp('temperatureUnit', u)}
+        onApplyPersonalisation={(v) => updateApp('applyPersonalisation', v)}
+        onOpenScience={() => {
+          setSettingsOpen(false)
+          setScienceOpen(true)
+        }}
+      />
 
       {activeTab === 'calculate' && (
         <>
@@ -416,11 +498,13 @@ export default function App() {
             state={state}
             selectedBike={selectedBike}
             riderKg={riderKg}
+            weightUnit={state.weightUnit}
             error={error}
             calculating={calculating}
             canCalculate={canCalculate}
             weather={state.weather}
             deviceCoords={deviceCoords}
+            deviceLocating={deviceLocating}
             deviceError={deviceError}
             suggestions={suggestions}
             searchStatus={searchStatus}
@@ -431,17 +515,14 @@ export default function App() {
             onPackWeight={(v) => updateApp('packWeightKg', v)}
             onRideType={(v) => updateApp('rideType', v)}
             onGravelPercent={(v) => updateApp('gravelPercent', v)}
-            onSelectBike={(id) => updateApp('selectedBikeId', id)}
             onPatchWeather={patchWeather}
             onUseMyLocation={useMyLocation}
             onSelectPlace={selectPlace}
             onCalculate={onCalculate}
-            onLogFeedback={() => setActiveTab('feedback')}
-            showFeedbackLink={Boolean(result)}
           />
 
           {result && adjustment && (
-            <section className={`mx-4 mb-4 ${successPanel}`}>
+            <section ref={resultRef} className={`mx-4 mb-4 scroll-mt-6 ${successPanel}`}>
               <p className="text-sm font-medium">
                 {weatherOutcome?.active
                   ? 'Inflate to approximately'
@@ -607,7 +688,7 @@ export default function App() {
                 <button
                   type="button"
                   className={`text-sm font-medium underline ${mutedText}`}
-                  onClick={() => setActiveTab('feedback')}
+                  onClick={openFeedbackForLatest}
                 >
                   Log ride feedback
                 </button>
@@ -647,6 +728,7 @@ export default function App() {
         <RiderTab
           riderWeightKg={state.riderWeightKg}
           riderKg={riderKg}
+          weightUnit={state.weightUnit}
           onChange={(v) => updateApp('riderWeightKg', v)}
         />
       )}
@@ -655,12 +737,23 @@ export default function App() {
         <FeedbackTab
           state={state}
           unit={unit}
+          selectedRideId={selectedRideHistoryId}
           actualFront={actualFront}
           actualRear={actualRear}
           rideFeel={rideFeel}
           rideNote={rideNote}
           feedbackMessage={feedbackMessage}
-          hasResult={Boolean(result)}
+          onSelectRide={(id) => {
+            setSelectedRideHistoryId(id)
+            setFeedbackMessage(null)
+            if (id) {
+              const ride = state.rideHistory.find((r) => r.id === id)
+              if (ride) {
+                setActualFront(formatPressure(ride.recommendedFrontKpa, ride.pressureUnit))
+                setActualRear(formatPressure(ride.recommendedRearKpa, ride.pressureUnit))
+              }
+            }
+          }}
           onActualFront={setActualFront}
           onActualRear={setActualRear}
           onRideFeel={setRideFeel}
@@ -669,18 +762,9 @@ export default function App() {
         />
       )}
 
-      {activeTab === 'settings' && (
-        <SettingsTab
-          state={state}
-          onPressureUnit={(u) => updateApp('pressureUnit', u)}
-          onApplyPersonalisation={(v) => updateApp('applyPersonalisation', v)}
-          onOpenScience={() => setScienceOpen(true)}
-        />
-      )}
-
       <BottomTabs
         active={activeTab}
-        feedbackCount={state.feedback.length}
+        feedbackCount={state.rideHistory.length}
         onChange={setActiveTab}
       />
     </div>

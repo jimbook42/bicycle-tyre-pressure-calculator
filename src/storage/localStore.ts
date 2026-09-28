@@ -7,10 +7,29 @@ import type {
   RideFeel,
   StoredAppStateV1,
   TubeType,
+  WeatherSettingsStored,
 } from '../types'
 
 const STORAGE_KEY_V1 = 'bicycle-tyre-pressure-calculator:v1'
 const STORAGE_KEY_V2 = 'bicycle-tyre-pressure-calculator:v2'
+
+export function defaultWeatherSettings(): WeatherSettingsStored {
+  return {
+    enabled: false,
+    weatherOpen: false,
+    locationMode: 'search',
+    locationSearch: '',
+    locationLabel: '',
+    timingMode: 'now',
+    rideDate: '',
+    startTime: '09:00',
+    durationPreset: '60',
+    durationCustomMinutes: '90',
+    inflationMode: 'ambient',
+    inflationManualC: '20',
+    wetMode: 'auto',
+  }
+}
 
 export function createId(): string {
   return crypto.randomUUID()
@@ -59,6 +78,7 @@ export function defaultAppPersistence(): AppPersistence {
     advancedOpen: false,
     applyPersonalisation: true,
     feedback: [],
+    weather: defaultWeatherSettings(),
   }
 }
 
@@ -97,6 +117,7 @@ export function migrateFromV1(legacy: StoredAppStateV1): AppPersistence {
     advancedOpen: legacy.advancedOpen ?? defaults.advancedOpen,
     applyPersonalisation: true,
     feedback: [],
+    weather: defaultWeatherSettings(),
   }
 }
 
@@ -155,9 +176,46 @@ function normalizeFeedback(raw: unknown): RideFeedback[] {
       actualRearKpa: record.actualRearKpa,
       result: record.result as RideFeel,
       notes: typeof record.notes === 'string' ? record.notes : '',
+      weatherLocationLabel:
+        typeof record.weatherLocationLabel === 'string' ? record.weatherLocationLabel : undefined,
     })
   }
   return kept
+}
+
+function normalizeWeather(raw: unknown): WeatherSettingsStored {
+  const defaults = defaultWeatherSettings()
+  if (!raw || typeof raw !== 'object') return defaults
+  const w = raw as Partial<WeatherSettingsStored>
+  return {
+    enabled: typeof w.enabled === 'boolean' ? w.enabled : defaults.enabled,
+    weatherOpen: typeof w.weatherOpen === 'boolean' ? w.weatherOpen : defaults.weatherOpen,
+    locationMode: w.locationMode === 'device' ? 'device' : 'search',
+    locationSearch: typeof w.locationSearch === 'string' ? w.locationSearch : defaults.locationSearch,
+    locationLabel: typeof w.locationLabel === 'string' ? w.locationLabel : defaults.locationLabel,
+    timingMode:
+      w.timingMode === 'today' ||
+      w.timingMode === 'tomorrow' ||
+      w.timingMode === 'future' ||
+      w.timingMode === 'now'
+        ? w.timingMode
+        : defaults.timingMode,
+    rideDate: typeof w.rideDate === 'string' ? w.rideDate : defaults.rideDate,
+    startTime: typeof w.startTime === 'string' ? w.startTime : defaults.startTime,
+    durationPreset:
+      typeof w.durationPreset === 'string' ? w.durationPreset : defaults.durationPreset,
+    durationCustomMinutes:
+      typeof w.durationCustomMinutes === 'string'
+        ? w.durationCustomMinutes
+        : defaults.durationCustomMinutes,
+    inflationMode: w.inflationMode === 'manual' ? 'manual' : 'ambient',
+    inflationManualC:
+      typeof w.inflationManualC === 'string' ? w.inflationManualC : defaults.inflationManualC,
+    wetMode:
+      w.wetMode === 'dry' || w.wetMode === 'wet' || w.wetMode === 'auto'
+        ? w.wetMode
+        : defaults.wetMode,
+  }
 }
 
 /** Parse unknown JSON into a safe AppPersistence without throwing. */
@@ -199,6 +257,7 @@ export function normalizeAppPersistence(raw: unknown): AppPersistence {
         ? data.applyPersonalisation
         : defaults.applyPersonalisation,
     feedback: normalizeFeedback(data.feedback),
+    weather: normalizeWeather(data.weather),
   }
 }
 

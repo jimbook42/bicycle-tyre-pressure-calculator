@@ -117,8 +117,7 @@ function buildMetadata(input: CalculatorInput, frontPercent: number): string[] {
   if (adv?.frontMeasuredWidthMm !== undefined) used.push('Front measured tyre width')
   if (adv?.rearMeasuredWidthMm !== undefined) used.push('Rear measured tyre width')
   if (adv?.rimInternalWidthMm !== undefined) used.push('Rim internal width')
-  if (adv?.rimType !== undefined) used.push(`Rim type: ${adv.rimType}`)
-  if (adv?.wheelDiameterInches !== undefined) used.push('Wheel diameter')
+  if (adv?.rimType === 'hookless') used.push('Rim type: hookless (safety warning only)')
   if (adv?.frontManufacturerLimits !== undefined) used.push('Front manufacturer limits')
   if (adv?.rearManufacturerLimits !== undefined) used.push('Rear manufacturer limits')
   if (adv?.frontLoadPercent !== undefined) {

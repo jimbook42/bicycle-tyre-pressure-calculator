@@ -123,6 +123,29 @@ export interface RideFeedback {
   actualRearKpa: number
   result: RideFeel
   notes: string
+  /** Human-readable location when weather was used; no precise coordinates stored. */
+  weatherLocationLabel?: string
+}
+
+export type WeatherLocationMode = 'search' | 'device'
+export type WeatherTimingMode = 'now' | 'today' | 'tomorrow' | 'future'
+export type WeatherInflationMode = 'ambient' | 'manual'
+export type WeatherWetMode = 'auto' | 'dry' | 'wet'
+
+export interface WeatherSettingsStored {
+  enabled: boolean
+  weatherOpen: boolean
+  locationMode: WeatherLocationMode
+  locationSearch: string
+  locationLabel: string
+  timingMode: WeatherTimingMode
+  rideDate: string
+  startTime: string
+  durationPreset: string
+  durationCustomMinutes: string
+  inflationMode: WeatherInflationMode
+  inflationManualC: string
+  wetMode: WeatherWetMode
 }
 
 export interface AppPersistence {
@@ -138,6 +161,7 @@ export interface AppPersistence {
   /** When false, show the scientific baseline and ignore saved ride notes. */
   applyPersonalisation: boolean
   feedback: RideFeedback[]
+  weather: WeatherSettingsStored
 }
 
 /** Legacy flat storage (v1) — migrated on load. */

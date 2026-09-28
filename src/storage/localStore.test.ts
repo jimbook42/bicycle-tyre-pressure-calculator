@@ -117,6 +117,7 @@ describe('localStore', () => {
     expect(normalized.bikes[0].id).toBe('keep-me')
     expect(normalized.feedback).toEqual([])
     expect(normalized.applyPersonalisation).toBe(true)
+    expect(normalized.weather.enabled).toBe(false)
   })
 
   it('round-trips persistence through save and load', () => {

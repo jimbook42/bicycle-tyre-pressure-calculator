@@ -10,6 +10,14 @@ import { calculatePressure } from './calculator/pressureEngine'
 import { displayToKpa, formatPressure, unitLabel } from './calculator/units'
 import { validateForCalculation } from './calculator/validation'
 import {
+  applyWeatherPressureAdjustments,
+  resolveInflationTemperature,
+  type WeatherPressureOutcome,
+} from './calculator/weatherAdjustment'
+import { WeatherSection } from './components/WeatherSection'
+import { psiToKpa } from './calculator/units'
+import { fetchProcessedRideWeather, type SessionCoordinates } from './weather/rideWeatherService'
+import {
   addBike,
   createId,
   deleteBike,
@@ -27,6 +35,7 @@ import type {
   RideFeel,
   RideType,
   TubeType,
+  WeatherSettingsStored,
 } from './types'
 
 function fieldClassName() {
@@ -45,6 +54,10 @@ export default function App() {
   const [rideFeel, setRideFeel] = useState<RideFeel>('good')
   const [rideNote, setRideNote] = useState('')
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null)
+  const [weatherOutcome, setWeatherOutcome] = useState<WeatherPressureOutcome | null>(null)
+  const [deviceCoords, setDeviceCoords] = useState<SessionCoordinates | null>(null)
+  const [deviceError, setDeviceError] = useState<string | null>(null)
+  const [calculating, setCalculating] = useState(false)
 
   const selectedBike = useMemo(() => getSelectedBike(state), [state])
 
@@ -80,27 +93,135 @@ export default function App() {
     )
   }
 
-  function onCalculate() {
+  function patchWeather(patch: Partial<WeatherSettingsStored>) {
+    setApp((prev) => ({ ...prev, weather: { ...prev.weather, ...patch } }))
+  }
+
+  function useMyLocation() {
+    setDeviceError(null)
+    if (!navigator.geolocation) {
+      setDeviceError('Geolocation is not available in this browser.')
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setDeviceCoords({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          label: 'Current location',
+        })
+      },
+      () => setDeviceError('Could not access your location.'),
+      { maximumAge: 60_000, timeout: 15_000 },
+    )
+  }
+
+  function frontDisplayKpa(): number {
+    if (!result || !adjustment) return 0
+    if (weatherOutcome?.active && weatherOutcome.front) return weatherOutcome.front.displayGaugeKpa
+    return state.applyPersonalisation
+      ? adjustment.front.personalisedKpa
+      : result.front.clampedKpa
+  }
+
+  function rearDisplayKpa(): number {
+    if (!result || !adjustment) return 0
+    if (weatherOutcome?.active && weatherOutcome.rear) return weatherOutcome.rear.displayGaugeKpa
+    return state.applyPersonalisation
+      ? adjustment.rear.personalisedKpa
+      : result.rear.clampedKpa
+  }
+
+  async function onCalculate() {
     const bike = getSelectedBike(state)
     const validation = validateForCalculation(state, bike)
     if (!validation.ok) {
       setResult(null)
+      setWeatherOutcome(null)
       setError(validation.message)
       return
     }
+    setCalculating(true)
     setError(null)
     setFeedbackMessage(null)
+    try {
     const baseline = calculatePressure(validation.input)
     const key = evidenceKeyFor(state, bike, baseline.systemWeightKg)
     const personal = personalisePressure(baseline, state.feedback, key)
+    const frontBase = state.applyPersonalisation
+      ? personal.front.personalisedKpa
+      : baseline.front.clampedKpa
+    const rearBase = state.applyPersonalisation
+      ? personal.rear.personalisedKpa
+      : baseline.rear.clampedKpa
+
+    let processedWeather = null
+    if (state.weather.enabled) {
+      try {
+        processedWeather = await fetchProcessedRideWeather(state.weather, deviceCoords)
+        if (processedWeather.available && processedWeather.locationLabel) {
+          setApp((prev) => ({
+            ...prev,
+            weather: { ...prev.weather, locationLabel: processedWeather!.locationLabel },
+          }))
+        }
+      } catch {
+        processedWeather = {
+          available: false,
+          errorMessage: 'Weather unavailable — using standard pressure calculation.',
+          locationLabel: '',
+          rideTempC: 0,
+          isWetForecast: false,
+          providerId: 'open-meteo',
+          attribution: '',
+          confidence: 'none' as const,
+        }
+      }
+    }
+
+    const adv = bike.advanced
+    const frontMin = adv.frontMinPsi.trim() ? psiToKpa(parseNum(adv.frontMinPsi)) : undefined
+    const frontMax = adv.frontMaxPsi.trim() ? psiToKpa(parseNum(adv.frontMaxPsi)) : undefined
+    const rearMin = adv.rearMinPsi.trim() ? psiToKpa(parseNum(adv.rearMinPsi)) : undefined
+    const rearMax = adv.rearMaxPsi.trim() ? psiToKpa(parseNum(adv.rearMaxPsi)) : undefined
+
+    const manualInflation =
+      state.weather.inflationMode === 'manual' && state.weather.inflationManualC.trim()
+        ? parseNum(state.weather.inflationManualC, Number.NaN)
+        : null
+    const inflationResolved = resolveInflationTemperature(
+      manualInflation !== null && Number.isFinite(manualInflation) ? manualInflation : null,
+      processedWeather?.currentAmbientTempC,
+    )
+
+    const weatherAdj = applyWeatherPressureAdjustments({
+      frontBaselineKpa: frontBase,
+      rearBaselineKpa: rearBase,
+      frontMinKpa: frontMin,
+      frontMaxKpa: frontMax,
+      rearMinKpa: rearMin,
+      rearMaxKpa: rearMax,
+      weather: processedWeather,
+      wetMode: state.weather.enabled ? state.weather.wetMode : 'auto',
+      inflationTempC:
+        state.weather.enabled && state.weather.inflationMode === 'manual'
+          ? inflationResolved.tempC
+          : null,
+      inflationAssumed: state.weather.inflationMode === 'manual' ? inflationResolved.assumed : false,
+    })
+
     setResult(baseline)
     setAdjustment(personal)
-    const shownFront = state.applyPersonalisation ? personal.front.personalisedKpa : baseline.front.clampedKpa
-    const shownRear = state.applyPersonalisation ? personal.rear.personalisedKpa : baseline.rear.clampedKpa
+    setWeatherOutcome(state.weather.enabled ? weatherAdj : null)
+    const shownFront = weatherAdj.active ? weatherAdj.front!.displayGaugeKpa : frontBase
+    const shownRear = weatherAdj.active ? weatherAdj.rear!.displayGaugeKpa : rearBase
     setActualFront(formatPressure(shownFront, state.pressureUnit))
     setActualRear(formatPressure(shownRear, state.pressureUnit))
     setRideFeel('good')
     setRideNote('')
+    } finally {
+      setCalculating(false)
+    }
   }
 
   function evidenceKeyFor(
@@ -153,6 +274,9 @@ export default function App() {
       actualRearKpa: displayToKpa(rear, state.pressureUnit),
       result: rideFeel,
       notes: rideNote.trim(),
+      weatherLocationLabel: weatherOutcome?.active
+        ? state.weather.locationLabel || undefined
+        : undefined,
     }
     setApp((prev) => ({ ...prev, feedback: [record, ...prev.feedback] }))
     setFeedbackMessage('Ride note saved on this device.')
@@ -453,6 +577,14 @@ export default function App() {
           </label>
         </section>
 
+        <WeatherSection
+          weather={state.weather}
+          deviceCoords={deviceCoords}
+          deviceError={deviceError}
+          onPatch={patchWeather}
+          onUseMyLocation={useMyLocation}
+        />
+
         <section className="rounded border border-slate-100 bg-slate-50 p-3">
           <h2 className="text-sm font-medium">Settings</h2>
           <label className="mt-2 block text-sm">
@@ -481,48 +613,56 @@ export default function App() {
 
         <button
           type="submit"
-          className="w-full rounded bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
+          disabled={calculating}
+          className="w-full rounded bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
         >
-          Calculate
+          {calculating ? 'Calculating…' : 'Calculate'}
         </button>
       </form>
 
       {result && adjustment && (
         <section className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-          <p className="text-sm font-medium text-emerald-900">Recommended starting pressure</p>
-          {state.applyPersonalisation && adjustment.active && (
+          <p className="text-sm font-medium text-emerald-900">
+            {weatherOutcome?.active
+              ? 'Inflate to approximately'
+              : 'Recommended starting pressure'}
+          </p>
+          {weatherOutcome && !weatherOutcome.active && weatherOutcome.unavailableMessage && (
+            <p className="mt-1 text-sm text-amber-900">{weatherOutcome.unavailableMessage}</p>
+          )}
+          {weatherOutcome?.active && weatherOutcome.compactLine && (
+            <p className="mt-1 text-sm text-emerald-900">{weatherOutcome.compactLine}</p>
+          )}
+          {state.applyPersonalisation && adjustment.active && !weatherOutcome?.active && (
             <p className="mt-1 text-sm text-emerald-900">{adjustment.summary}</p>
           )}
           <div className="mt-3 grid grid-cols-2 gap-4 text-center">
             <div>
               <p className="text-xs uppercase tracking-wide text-emerald-800">Front</p>
               <p className="text-3xl font-semibold tabular-nums text-emerald-950">
-                {formatPressure(
-                  state.applyPersonalisation
-                    ? adjustment.front.personalisedKpa
-                    : result.front.clampedKpa,
-                  unit,
-                )}{' '}
+                {formatPressure(frontDisplayKpa(), unit)}{' '}
                 <span className="text-lg">{unitLabel(unit)}</span>
               </p>
             </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-emerald-800">Rear</p>
               <p className="text-3xl font-semibold tabular-nums text-emerald-950">
-                {formatPressure(
-                  state.applyPersonalisation
-                    ? adjustment.rear.personalisedKpa
-                    : result.rear.clampedKpa,
-                  unit,
-                )}{' '}
+                {formatPressure(rearDisplayKpa(), unit)}{' '}
                 <span className="text-lg">{unitLabel(unit)}</span>
               </p>
             </div>
           </div>
+          {weatherOutcome?.active && (
+            <p className="mt-2 text-center text-sm text-emerald-900">
+              Target riding pressure: front{' '}
+              {formatPressure(weatherOutcome.front!.targetRidingGaugeKpa, unit)} / rear{' '}
+              {formatPressure(weatherOutcome.rear!.targetRidingGaugeKpa, unit)} {unitLabel(unit)}
+            </p>
+          )}
 
-          {result.warnings.length > 0 && (
+          {(result.warnings.length > 0 || (weatherOutcome?.warnings.length ?? 0) > 0) && (
             <ul className="mt-3 list-disc pl-5 text-sm text-amber-900">
-              {result.warnings.map((w) => (
+              {[...result.warnings, ...(weatherOutcome?.warnings ?? [])].map((w) => (
                 <li key={w}>{w}</li>
               ))}
             </ul>
@@ -588,6 +728,25 @@ export default function App() {
                     ))}
                   </ul>
                 </div>
+              )}
+              {weatherOutcome?.active && (
+                <>
+                  <p>
+                    <strong>Ride temperature:</strong> {weatherOutcome.rideTempC?.toFixed(0)}°C
+                    (duration-weighted air temperature)
+                  </p>
+                  <p>
+                    <strong>Inflation temperature:</strong> {weatherOutcome.inflationTempC?.toFixed(0)}
+                    °C
+                    {weatherOutcome.inflationAssumed ? ' (assumed)' : ''}
+                  </p>
+                  {weatherOutcome.notes.map((note) => (
+                    <p key={note}>{note}</p>
+                  ))}
+                  {weatherOutcome.attribution && (
+                    <p className="text-xs text-emerald-800">{weatherOutcome.attribution}</p>
+                  )}
+                </>
               )}
               {result.notes.map((note) => (
                 <p key={note} className="text-emerald-900">
@@ -707,6 +866,9 @@ export default function App() {
                       ? 'Too soft'
                       : 'Good'}
                 </p>
+                {entry.weatherLocationLabel && (
+                  <p className="text-slate-600">{entry.weatherLocationLabel}</p>
+                )}
                 {entry.notes && <p className="text-slate-600">{entry.notes}</p>}
               </li>
             ))}

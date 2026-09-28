@@ -73,3 +73,15 @@ After the baseline is calculated, a separate layer may nudge the **starting** su
 Offsets are averaged with newer rides weighted more (`RECENCY_DECAY`). The average is scaled by how many rides exist (`RIDES_FOR_FULL_WEIGHT` = 5) and by how much the notes agree. Opposing notes shrink the shift. The result is capped at 8 PSI from the baseline (`MAX_OFFSET_PSI`), then clamped to manufacturer limits. One ride can move the suggestion by at most one fifth of that cap.
 
 Evidence is kept apart by bike, ride type, tyre widths, tube type, and a coarse system-weight bucket. Resetting personalisation for a setup deletes only that setup’s notes. Constants live in `src/data/personalisationConstants.ts`.
+
+## Weather and temperature (optional)
+
+Open-Meteo supplies geocoding and hourly **2 m air temperature** and precipitation for a single representative location (not route weather). The provider sits behind `WeatherProvider` so it can be swapped if licensing changes.
+
+**Target riding pressure** is the baseline (plus personal notes and optional wet adjustment). **Cold inflation pressure** uses an ideal-gas gauge approximation:
+
+`P_cold_abs = P_target_abs × (T_inflate_K / T_ride_K)`
+
+Ride temperature is a **duration-weighted** average over the planned ride window from hourly forecast data — not daily min/max. Inflation temperature defaults to current ambient from forecast when available; otherwise a labelled assumption (`DEFAULT_ASSUMED_INFLATION_TEMP_C`). Wind chill / “feels like” is not used.
+
+Wet riding applies `WET_SURFACE_PRESSURE_FACTOR` (0.97) on the riding target — a conservative practical adjustment, not a physical law. Manufacturer limits are applied to both riding and cold inflation results.

@@ -31,6 +31,7 @@ describe('raster icons', () => {
     expect(el?.className).toContain('bg-current')
     expect(el?.className).toContain(RIDE_TYPE_ICON_SIZE)
     expect((el as HTMLElement)?.style.maskImage).toContain('/icons/ride-road.png')
+    expect((el as HTMLElement)?.style.maskMode).toBe('alpha')
   })
 
   it('renders bike tile artwork at the larger bike size', () => {

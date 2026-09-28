@@ -18,21 +18,28 @@ const RIDE_TYPE_ICON_SRC: Record<RideType, string> = {
   mixed: '/icons/ride-mixed.png',
 }
 
-/** PNG artwork tinted with the parent `color` (active vs muted pill text). */
-export const rasterIconMaskClass =
-  'inline-block shrink-0 bg-current [mask-size:contain] [mask-repeat:no-repeat] [mask-position:center] [-webkit-mask-size:contain] [-webkit-mask-repeat:no-repeat] [-webkit-mask-position:center]'
-
-export const RIDE_TYPE_ICON_SIZE = 'h-7 w-7'
-export const BIKE_ICON_SIZE = 'h-8 w-8'
+/**
+ * White-on-transparent PNGs, masked so the shape uses the parent text color.
+ * Selected pills are brighter; idle pills stay muted. Works in light and dark.
+ */
+export const RIDE_TYPE_ICON_SIZE = 'h-[60px] w-[96px]'
+export const BIKE_ICON_SIZE = 'h-[72px] w-[119px]'
 
 function RasterIcon({ src, className }: { src: string; className: string }) {
   return (
     <span
       aria-hidden
-      className={`${rasterIconMaskClass} ${className}`}
+      className={`inline-block shrink-0 bg-current ${className}`}
       style={{
         maskImage: `url(${src})`,
         WebkitMaskImage: `url(${src})`,
+        maskSize: '100% 100%',
+        WebkitMaskSize: '100% 100%',
+        maskRepeat: 'no-repeat',
+        WebkitMaskRepeat: 'no-repeat',
+        maskPosition: 'center',
+        WebkitMaskPosition: 'center',
+        maskMode: 'alpha',
       }}
     />
   )
@@ -82,9 +89,9 @@ export function IconPin({ className = 'h-3.5 w-3.5' }: { className?: string }) {
   )
 }
 
-/** Brand road-bike artwork (light strokes; inverted on light theme). */
-export function IconBike({ className = BIKE_ICON_SIZE }: { className?: string }) {
-  return <RasterIcon src="/icons/bike-road.png" className={className} />
+/** Road-bike artwork. Extra classes append; size stays applied. */
+export function IconBike({ className = '' }: { className?: string }) {
+  return <RasterIcon src="/icons/bike-road.png" className={`${BIKE_ICON_SIZE} ${className}`} />
 }
 
 export function IconPlus({ className = 'h-6 w-6' }: { className?: string }) {

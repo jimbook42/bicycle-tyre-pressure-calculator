@@ -130,11 +130,11 @@ export function applyWeatherPressureAdjustments(input: ApplyWeatherInput): Weath
   const compactLine = `Ride: ${input.weather.rideTempC.toFixed(0)}°C average • ${wetLabel}`
 
   const notes = [
-    'Target riding pressure is what you want on the tyre while riding.',
-    'Inflate to approximately is the gauge reading when you pump up (ideal-gas approximation).',
+    'The large numbers are your target pressure on the ride.',
+    'If pump-now values are shown, they are lower so tyres reach the target as they warm up.',
     wet
-      ? `Weather adjustment: ${wetLabel} (×${WET_SURFACE_PRESSURE_FACTOR} on riding target).`
-      : 'No wet-surface riding adjustment applied.',
+      ? `Wet-surface adjustment applied to the riding target.`
+      : 'No wet-surface adjustment applied.',
   ]
   if (inflationAssumed) {
     notes.push(`Inflation temperature assumed ${inflationTempC.toFixed(0)}°C (not measured).`)

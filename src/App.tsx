@@ -252,7 +252,9 @@ export default function App() {
 
   function frontDisplayKpa(): number {
     if (!result || !adjustment) return 0
-    if (weatherOutcome?.active && weatherOutcome.front) return weatherOutcome.front.displayGaugeKpa
+    if (weatherOutcome?.active && weatherOutcome.front) {
+      return weatherOutcome.front.targetRidingGaugeKpa
+    }
     return state.applyPersonalisation
       ? adjustment.front.personalisedKpa
       : result.front.clampedKpa
@@ -260,10 +262,22 @@ export default function App() {
 
   function rearDisplayKpa(): number {
     if (!result || !adjustment) return 0
-    if (weatherOutcome?.active && weatherOutcome.rear) return weatherOutcome.rear.displayGaugeKpa
+    if (weatherOutcome?.active && weatherOutcome.rear) {
+      return weatherOutcome.rear.targetRidingGaugeKpa
+    }
     return state.applyPersonalisation
       ? adjustment.rear.personalisedKpa
       : result.rear.clampedKpa
+  }
+
+  function weatherPumpLine(): string | null {
+    if (!weatherOutcome?.active || !weatherOutcome.front || !weatherOutcome.rear) return null
+    const pumpF = formatPressure(weatherOutcome.front.displayGaugeKpa, unit)
+    const pumpR = formatPressure(weatherOutcome.rear.displayGaugeKpa, unit)
+    const targetF = formatPressure(weatherOutcome.front.targetRidingGaugeKpa, unit)
+    const targetR = formatPressure(weatherOutcome.rear.targetRidingGaugeKpa, unit)
+    if (pumpF === targetF && pumpR === targetR) return null
+    return `Set your pump to about ${pumpF} / ${pumpR} ${unitLabel(unit)} now. Tyres should reach about ${targetF} / ${targetR} ${unitLabel(unit)} as they warm on the ride.`
   }
 
   async function onCalculate() {
@@ -525,7 +539,7 @@ export default function App() {
             <section ref={resultRef} className={`mx-4 mb-4 scroll-mt-6 ${successPanel}`}>
               <p className="text-sm font-medium">
                 {weatherOutcome?.active
-                  ? 'Inflate to approximately'
+                  ? 'Recommended riding pressure'
                   : 'Recommended starting pressure'}
               </p>
               {weatherOutcome && !weatherOutcome.active && weatherOutcome.unavailableMessage && (
@@ -549,14 +563,12 @@ export default function App() {
                   unit={unitLabel(unit)}
                 />
               </div>
-              {weatherOutcome?.active && (
-                <p className={`mt-2 text-center text-sm ${mutedText}`}>
-                  Target riding pressure: front{' '}
-                  {formatPressure(weatherOutcome.front!.targetRidingGaugeKpa, unit)} / rear{' '}
-                  {formatPressure(weatherOutcome.rear!.targetRidingGaugeKpa, unit)}{' '}
-                  {unitLabel(unit)}
-                </p>
-              )}
+              {(() => {
+                const pumpLine = weatherPumpLine()
+                return pumpLine ? (
+                  <p className={`mt-2 text-center text-sm leading-snug ${mutedText}`}>{pumpLine}</p>
+                ) : null
+              })()}
 
               {(result.warnings.length > 0 || (weatherOutcome?.warnings.length ?? 0) > 0) && (
                 <ul className={`mt-3 list-disc pl-5 text-sm ${warnBox}`}>
@@ -571,7 +583,7 @@ export default function App() {
                 className={`mt-4 text-sm font-medium underline ${mutedText}`}
                 onClick={() => setDetailsOpen((v) => !v)}
               >
-                {detailsOpen ? 'Hide details' : 'Why? / Details'}
+                {detailsOpen ? 'Hide' : 'Why?'}
               </button>
 
               {detailsOpen && (
@@ -633,8 +645,8 @@ export default function App() {
                   {weatherOutcome?.active && (
                     <>
                       <p>
-                        <strong>Ride temperature:</strong> {weatherOutcome.rideTempC?.toFixed(0)}°C
-                        (duration-weighted air temperature)
+                        <strong>Expected air temperature on the ride:</strong>{' '}
+                        {weatherOutcome.rideTempC?.toFixed(0)}°C (average for your ride window)
                       </p>
                       <p>
                         <strong>Inflation temperature:</strong>{' '}
@@ -642,11 +654,8 @@ export default function App() {
                         {weatherOutcome.inflationAssumed ? ' (assumed)' : ''}
                       </p>
                       {weatherOutcome.notes.map((note) => (
-                        <p key={note}>{note}</p>
+                        <p key={note} className={mutedText}>{note}</p>
                       ))}
-                      {weatherOutcome.attribution && (
-                        <p className={`text-xs ${mutedText}`}>{weatherOutcome.attribution}</p>
-                      )}
                     </>
                   )}
                   {result.notes.map((note) => (
@@ -655,8 +664,8 @@ export default function App() {
                     </p>
                   ))}
                   <p className={mutedText}>
-                    Ride notes are personal evidence stored on this device. They do not change the
-                    baseline model.
+                    Feedback you save here stays on this device and gently adjusts future suggestions
+                    for similar setups.
                   </p>
                   {state.applyPersonalisation && (
                     <button
@@ -762,11 +771,7 @@ export default function App() {
         />
       )}
 
-      <BottomTabs
-        active={activeTab}
-        feedbackCount={state.rideHistory.length}
-        onChange={setActiveTab}
-      />
+      <BottomTabs active={activeTab} onChange={setActiveTab} />
     </div>
   )
 }

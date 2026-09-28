@@ -12,6 +12,7 @@ import {
   fieldClassName,
   mutedText,
   pillActive,
+  pillIdle,
   sectionTitle,
 } from '../ui/softUi'
 
@@ -69,22 +70,21 @@ export function BikesTab({
             <button
               key={bike.id}
               type="button"
-              className={`min-w-0 text-left p-3 ${cardInner} ${active ? pillActive : ''}`}
+              className={`min-w-0 text-left p-3 ${active ? pillActive : pillIdle}`}
               onClick={() => onSelectBike(bike.id)}
             >
-              <IconBike className="mb-2 h-6 w-6 opacity-80" />
+              <IconBike className="mb-2 opacity-90" />
               <p className="truncate text-sm font-medium">{bike.name}</p>
               <p className={`truncate text-xs ${mutedText}`}>
                 {bike.frontWidthMm} / {bike.rearWidthMm} mm
               </p>
               <p className={`truncate text-xs ${mutedText}`}>{tubeLabel(bike.tubeType)}</p>
-              {active && <p className={`mt-2 text-xs font-medium ${mutedText}`}>Active</p>}
             </button>
           )
         })}
         <button
           type="button"
-          className={`flex min-h-[7.5rem] min-w-0 flex-col items-center justify-center gap-2 p-3 ${cardInner}`}
+          className={`flex min-h-[7.5rem] min-w-0 flex-col items-center justify-center gap-2 p-3 ${pillIdle}`}
           onClick={onAddBike}
         >
           <IconPlus className="h-6 w-6 opacity-70" />

@@ -123,7 +123,6 @@ function buildMetadata(input: CalculatorInput, frontPercent: number): string[] {
   if (adv?.frontLoadPercent !== undefined) {
     used.push(`Front load override: ${frontPercent}%`)
   }
-  used.push(`Tube type stored (${input.tyres.tubeType}) — no V1 pressure offset`)
   return used
 }
 
@@ -132,9 +131,7 @@ export function calculatePressure(input: CalculatorInput): PressureResult {
   const { frontPercent, rearPercent } = loadSplit(input.advanced)
   const surfaceModel = resolveSurfaceModel(input.ride)
   const warnings: string[] = []
-  const notes: string[] = [
-    'Pressures use a Berto chart approximation (see SCIENCE.md); starting values only.',
-  ]
+  const notes: string[] = []
 
   if (input.advanced?.rimType === 'hookless') {
     warnings.push(

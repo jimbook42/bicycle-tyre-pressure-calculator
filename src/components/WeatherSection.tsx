@@ -122,10 +122,7 @@ export function WeatherSection({
             )}
             {deviceError && <p className="text-xs text-[#a63d2a]">{deviceError}</p>}
             {confirmedLocation && !deviceLocating && (
-              <p className={`flex min-w-0 items-start gap-1.5 text-sm ${mutedText}`}>
-                <IconPin className="mt-0.5 shrink-0" />
-                <span className="min-w-0 break-words">{confirmedLocation}</span>
-              </p>
+              <LocationConfirm label={confirmedLocation} />
             )}
             {!deviceLocating && !confirmedLocation && !deviceError && (
               <button type="button" className={btnRaised} onClick={onUseMyLocation}>
@@ -138,10 +135,7 @@ export function WeatherSection({
           </div>
         )}
         {weather.locationMode === 'search' && confirmedLocation && (
-          <p className={`mt-2 flex min-w-0 items-start gap-1.5 text-sm ${mutedText}`}>
-            <IconPin className="mt-0.5 shrink-0" />
-            <span className="min-w-0 break-words">{confirmedLocation}</span>
-          </p>
+          <LocationConfirm label={confirmedLocation} />
         )}
       </fieldset>
 
@@ -277,10 +271,6 @@ export function WeatherSection({
         </div>
       </details>
 
-      <p className={`text-xs ${mutedText}`}>
-        Weather data by Open-Meteo.com. Non-commercial use is supported without an API key.
-      </p>
-
       {(previewLoading || preview) && (
         <div className={`p-3 text-sm ${cardInner}`} aria-live="polite">
           <p className={`text-xs font-medium uppercase tracking-wide ${mutedText}`}>Weather preview</p>
@@ -311,6 +301,18 @@ export function WeatherSection({
         </div>
       )}
     </section>
+  )
+}
+
+function LocationConfirm({ label }: { label: string }) {
+  return (
+    <p
+      className={`mt-2 flex max-w-full items-center gap-1.5 text-xs ${mutedText}`}
+      aria-live="polite"
+    >
+      <IconPin />
+      <span className="min-w-0 truncate" title={label}>{label}</span>
+    </p>
   )
 }
 

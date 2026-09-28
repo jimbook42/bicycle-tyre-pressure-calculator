@@ -131,18 +131,18 @@ export function CalculateTab({
         <h2 className={sectionTitle}>This ride</h2>
         <div>
           <p className="text-sm font-medium">Ride type</p>
-          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="mt-2 grid grid-cols-2 gap-2">
             {RIDE_TYPE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
-                className={`flex min-w-0 items-center justify-center gap-1.5 px-2 py-2 text-xs sm:text-sm ${
+                className={`flex min-w-0 flex-col items-center justify-center gap-1 px-2 py-2.5 text-xs sm:text-sm ${
                   state.rideType === opt.value ? pillActive : pillIdle
                 }`}
                 onClick={() => onRideType(opt.value)}
               >
-                <RideTypeIcon type={opt.value} className="h-4 w-4 shrink-0" />
-                <span className="truncate">{opt.label}</span>
+                <RideTypeIcon type={opt.value} className="h-5 w-5" />
+                <span>{opt.label}</span>
               </button>
             ))}
           </div>

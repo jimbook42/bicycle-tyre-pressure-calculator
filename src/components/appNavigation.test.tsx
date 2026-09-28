@@ -22,7 +22,7 @@ describe('app navigation', () => {
     document.body.appendChild(host)
     root = createRoot(host)
     act(() => {
-      root?.render(createElement(BottomTabs, { active: 'calculate', feedbackCount: 0, onChange: () => {} }))
+      root?.render(createElement(BottomTabs, { active: 'calculate', onChange: () => {} }))
     })
     const buttons = Array.from(host.querySelectorAll('button')).map((b) => b.textContent?.trim())
     expect(buttons[0]).toMatch(/^Calculate/)

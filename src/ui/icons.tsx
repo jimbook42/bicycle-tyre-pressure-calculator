@@ -18,12 +18,25 @@ const RIDE_TYPE_ICON_SRC: Record<RideType, string> = {
   mixed: '/icons/ride-mixed.png',
 }
 
-/** Monochrome PNG artwork: black on light UI, white on dark UI. */
-export const rasterIconClass =
-  'shrink-0 object-contain brightness-0 opacity-[0.92] dark:brightness-0 dark:invert'
+/** PNG artwork tinted with the parent `color` (active vs muted pill text). */
+export const rasterIconMaskClass =
+  'inline-block shrink-0 bg-current [mask-size:contain] [mask-repeat:no-repeat] [mask-position:center] [-webkit-mask-size:contain] [-webkit-mask-repeat:no-repeat] [-webkit-mask-position:center]'
 
 export const RIDE_TYPE_ICON_SIZE = 'h-7 w-7'
 export const BIKE_ICON_SIZE = 'h-8 w-8'
+
+function RasterIcon({ src, className }: { src: string; className: string }) {
+  return (
+    <span
+      aria-hidden
+      className={`${rasterIconMaskClass} ${className}`}
+      style={{
+        maskImage: `url(${src})`,
+        WebkitMaskImage: `url(${src})`,
+      }}
+    />
+  )
+}
 
 function Svg({
   className = 'h-5 w-5',
@@ -71,17 +84,7 @@ export function IconPin({ className = 'h-3.5 w-3.5' }: { className?: string }) {
 
 /** Brand road-bike artwork (light strokes; inverted on light theme). */
 export function IconBike({ className = BIKE_ICON_SIZE }: { className?: string }) {
-  return (
-    <img
-      src="/icons/bike-road.png"
-      alt=""
-      className={`${rasterIconClass} ${className}`}
-      width={32}
-      height={32}
-      decoding="async"
-      draggable={false}
-    />
-  )
+  return <RasterIcon src="/icons/bike-road.png" className={className} />
 }
 
 export function IconPlus({ className = 'h-6 w-6' }: { className?: string }) {
@@ -110,17 +113,7 @@ export function RideTypeIcon({
 }) {
   const src = RIDE_TYPE_ICON_SRC[type]
   if (!src) return null
-  return (
-    <img
-      src={src}
-      alt=""
-      className={`${rasterIconClass} ${className}`}
-      width={28}
-      height={28}
-      decoding="async"
-      draggable={false}
-    />
-  )
+  return <RasterIcon src={src} className={className} />
 }
 
 export function WeatherIcon({

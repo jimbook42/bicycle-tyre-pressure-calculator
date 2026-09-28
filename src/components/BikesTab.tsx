@@ -73,7 +73,7 @@ export function BikesTab({
               className={`min-w-0 text-left p-3 ${active ? pillActive : pillIdle}`}
               onClick={() => onSelectBike(bike.id)}
             >
-              <IconBike className="mb-2 opacity-90" />
+              <IconBike className="mb-2" />
               <p className="truncate text-sm font-medium">{bike.name}</p>
               <p className={`truncate text-xs ${mutedText}`}>
                 {bike.frontWidthMm} / {bike.rearWidthMm} mm
@@ -87,7 +87,7 @@ export function BikesTab({
           className={`flex min-h-[7.5rem] min-w-0 flex-col items-center justify-center gap-2 p-3 ${pillIdle}`}
           onClick={onAddBike}
         >
-          <IconPlus className="h-6 w-6 opacity-70" />
+          <IconPlus className="h-6 w-6" />
           <span className="text-sm font-medium">Add new bike</span>
         </button>
       </div>

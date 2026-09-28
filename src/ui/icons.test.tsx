@@ -3,7 +3,7 @@ import { createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { BIKE_ICON_SIZE, IconBike, RIDE_TYPE_ICON_SIZE, RideTypeIcon, rasterIconClass } from './icons'
+import { BIKE_ICON_SIZE, IconBike, RIDE_TYPE_ICON_SIZE, RideTypeIcon } from './icons'
 
 describe('raster icons', () => {
   let root: Root | null = null
@@ -25,20 +25,19 @@ describe('raster icons', () => {
     })
   }
 
-  it('renders ride-type artwork with theme-aware monochrome filters', () => {
+  it('renders ride-type artwork tinted via mask and currentColor', () => {
     renderIcon(createElement(RideTypeIcon, { type: 'road' }))
-    const img = host!.querySelector('img')
-    expect(img?.getAttribute('src')).toBe('/icons/ride-road.png')
-    expect(img?.className).toContain('brightness-0')
-    expect(img?.className).toContain('dark:invert')
-    expect(img?.className).toContain(RIDE_TYPE_ICON_SIZE)
+    const el = host!.querySelector('span[aria-hidden]')
+    expect(el?.className).toContain('bg-current')
+    expect(el?.className).toContain(RIDE_TYPE_ICON_SIZE)
+    expect((el as HTMLElement)?.style.maskImage).toContain('/icons/ride-road.png')
   })
 
   it('renders bike tile artwork at the larger bike size', () => {
     renderIcon(createElement(IconBike, {}))
-    const img = host!.querySelector('img')
-    expect(img?.getAttribute('src')).toBe('/icons/bike-road.png')
-    expect(img?.className).toContain(rasterIconClass.split(' ')[0])
-    expect(img?.className).toContain(BIKE_ICON_SIZE)
+    const el = host!.querySelector('span[aria-hidden]')
+    expect(el?.className).toContain('bg-current')
+    expect(el?.className).toContain(BIKE_ICON_SIZE)
+    expect((el as HTMLElement)?.style.maskImage).toContain('/icons/bike-road.png')
   })
 })

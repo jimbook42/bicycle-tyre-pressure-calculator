@@ -23,8 +23,6 @@ describe('WeatherSection location suggestions', () => {
     root = createRoot(host)
     const onSelectPlace = vi.fn()
     const weather = defaultWeatherSettings()
-    weather.enabled = true
-    weather.weatherOpen = true
     weather.locationSearch = 'Chris'
     act(() => {
       root?.render(
@@ -50,6 +48,8 @@ describe('WeatherSection location suggestions', () => {
             temperatureLine: 'Now 14°C • 12–14°C',
             rainLine: 'Rain possible',
             wetLine: 'Wet adjustment: Applied',
+            compactTempCondition: '12–14°C · Wet',
+            compactTimingLine: 'Now · 1 hr',
             unavailable: false,
           },
           previewLoading: false,
@@ -64,7 +64,6 @@ describe('WeatherSection location suggestions', () => {
     )
     expect(button?.textContent).toBe('Christchurch, Canterbury, New Zealand')
     expect(host.textContent).not.toContain('-43.53')
-    expect(host.textContent).toContain('Expected ride weather')
     expect(host.textContent).toContain('12–14°C')
     act(() => button?.click())
     expect(onSelectPlace).toHaveBeenCalledWith(

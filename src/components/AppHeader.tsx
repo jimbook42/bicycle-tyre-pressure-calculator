@@ -4,10 +4,9 @@ import { ThemeToggle } from './ThemeToggle'
 interface AppHeaderProps {
   darkMode: boolean
   onToggleDark: () => void
-  onOpenScience: () => void
 }
 
-export function AppHeader({ darkMode, onToggleDark, onOpenScience }: AppHeaderProps) {
+export function AppHeader({ darkMode, onToggleDark }: AppHeaderProps) {
   return (
     <header className="mb-6 flex items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-3">
@@ -24,13 +23,6 @@ export function AppHeader({ darkMode, onToggleDark, onOpenScience }: AppHeaderPr
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <button
-          type="button"
-          onClick={onOpenScience}
-          className={`rounded-full px-3 py-1.5 text-[11px] font-medium ${cardOuter} ${mutedText}`}
-        >
-          Science
-        </button>
         <ThemeToggle dark={darkMode} onToggle={onToggleDark} />
       </div>
     </header>

@@ -1,6 +1,7 @@
 import type { WetMode } from '../calculator/weatherAdjustment'
 import { weatherIconForCode } from './weatherIcons'
 import { durationMinutesFromSettings } from './rideWeatherService'
+import { formatLaterWhenLabel, isRideLater } from './rideTimingUi'
 import type { ProcessedRideWeather } from './weatherProvider'
 import type { WeatherSettingsStored } from '../types'
 
@@ -46,7 +47,42 @@ export interface WeatherPreviewModel {
   temperatureLine: string
   rainLine: string
   wetLine: string
+  compactTempCondition: string
+  compactTimingLine: string
   unavailable: boolean
+}
+
+export function formatCompactWeatherSummary(
+  settings: WeatherSettingsStored,
+  processed: ProcessedRideWeather | null,
+): { temperatureCondition: string; timingLine: string } {
+  const minutes = durationMinutesFromSettings(settings)
+  const duration =
+    minutes % 60 === 0
+      ? `${minutes / 60} hr${minutes === 60 ? '' : ''}`
+      : `${minutes} min`
+  const timingLine =
+    settings.timingMode === 'now'
+      ? `Now · ${duration}`
+      : `${describeRidePlan(settings).split(' • ')[0]} · ${duration}`
+
+  if (!processed?.available) {
+    return { temperatureCondition: '—', timingLine }
+  }
+  const temp = formatTemperatureWindow(processed)
+  const wet = wetAdjustmentApplies(processed.isWetForecast, settings.wetMode)
+  const condition =
+    settings.wetMode === 'dry'
+      ? 'Dry'
+      : settings.wetMode === 'wet'
+        ? 'Wet'
+        : processed.isWetForecast
+          ? 'Rain possible'
+          : 'Dry'
+  const tempCond = wet && settings.wetMode === 'auto' && processed.isWetForecast
+    ? `${temp} · ${condition}`
+    : `${temp} · ${wet ? 'Wet' : 'Dry'}`
+  return { temperatureCondition: tempCond, timingLine }
 }
 
 export function buildWeatherPreview(
@@ -55,6 +91,7 @@ export function buildWeatherPreview(
 ): WeatherPreviewModel {
   const plan = describeRidePlan(settings)
   if (!processed?.available) {
+    const { temperatureCondition, timingLine } = formatCompactWeatherSummary(settings, null)
     return {
       locationLabel: settings.locationLabel || processed?.locationLabel || 'Location not selected',
       plan,
@@ -62,6 +99,8 @@ export function buildWeatherPreview(
       temperatureLine: '',
       rainLine: '',
       wetLine: '',
+      compactTempCondition: temperatureCondition,
+      compactTimingLine: timingLine,
       unavailable: true,
     }
   }
@@ -71,6 +110,10 @@ export function buildWeatherPreview(
       ? `Now ${Math.round(processed.currentAmbientTempC)}°C • `
       : ''
   const code = processed.dominantWeatherCode ?? 0
+  const { temperatureCondition, timingLine } = formatCompactWeatherSummary(settings, processed)
+  const compactTimingLine = isRideLater(settings)
+    ? `${formatLaterWhenLabel(settings)} · ${timingLine.split(' · ').slice(-1)[0]}`
+    : timingLine
   return {
     locationLabel: processed.locationLabel,
     plan,
@@ -78,6 +121,8 @@ export function buildWeatherPreview(
     temperatureLine: `${nowBit}${formatTemperatureWindow(processed)}`,
     rainLine: processed.isWetForecast ? 'Rain possible' : 'No rain in this ride window',
     wetLine: wet ? 'Wet adjustment: Applied' : 'Wet adjustment: Not applied',
+    compactTempCondition: temperatureCondition,
+    compactTimingLine,
     unavailable: false,
   }
 }

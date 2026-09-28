@@ -15,8 +15,8 @@ const STORAGE_KEY_V2 = 'bicycle-tyre-pressure-calculator:v2'
 
 export function defaultWeatherSettings(): WeatherSettingsStored {
   return {
-    enabled: false,
-    weatherOpen: false,
+    enabled: true,
+    weatherOpen: true,
     locationMode: 'search',
     locationSearch: '',
     locationLabel: '',
@@ -190,7 +190,7 @@ function normalizeWeather(raw: unknown): WeatherSettingsStored {
   if (!raw || typeof raw !== 'object') return defaults
   const w = raw as Partial<WeatherSettingsStored>
   return {
-    enabled: typeof w.enabled === 'boolean' ? w.enabled : defaults.enabled,
+    enabled: true,
     weatherOpen: typeof w.weatherOpen === 'boolean' ? w.weatherOpen : defaults.weatherOpen,
     locationMode: w.locationMode === 'device' ? 'device' : 'search',
     locationSearch: typeof w.locationSearch === 'string' ? w.locationSearch : defaults.locationSearch,

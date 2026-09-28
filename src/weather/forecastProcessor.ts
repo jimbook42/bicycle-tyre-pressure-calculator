@@ -107,6 +107,27 @@ export function durationWeightedRideTemperatureC(
   return weighted / totalMs
 }
 
+/** Min and max ambient samples inside the ride window. Not the daily min or max. */
+export function temperatureRangeOverRideC(
+  hourly: HourlyForecastPoint[],
+  window: RideWindow,
+): { minC: number; maxC: number } {
+  const sliceMs = 15 * 60_000
+  let minC = Number.POSITIVE_INFINITY
+  let maxC = Number.NEGATIVE_INFINITY
+  for (let t = window.start.getTime(); t < window.end.getTime(); t += sliceMs) {
+    const sliceEnd = Math.min(window.end.getTime(), t + sliceMs)
+    const sample = interpolateAt(hourly, new Date((t + sliceEnd) / 2))
+    minC = Math.min(minC, sample.temperatureC)
+    maxC = Math.max(maxC, sample.temperatureC)
+  }
+  if (!Number.isFinite(minC) || !Number.isFinite(maxC)) {
+    const fallback = interpolateAt(hourly, window.start).temperatureC
+    return { minC: fallback, maxC: fallback }
+  }
+  return { minC, maxC }
+}
+
 export function forecastWetDuringRide(
   hourly: HourlyForecastPoint[],
   window: RideWindow,

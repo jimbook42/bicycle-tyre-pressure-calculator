@@ -124,4 +124,30 @@ describe('pressureEngine', () => {
     expect(formatPressure(kpa, 'kPa')).toBe(String(Math.round(kpa)))
     expect(formatPressure(kpa, 'bar')).toMatch(/^\d+\.\d$/)
   })
+
+  it('104 kg on 35 mm tyres at 40/60 is the Berto-fit result, about 44 and 70 PSI', () => {
+    const result = calculatePressure(
+      baseInput({
+        rider: { weightKg: 95 },
+        bike: { weightKg: 9 },
+        ride: { type: 'road', gravelPercent: 0, packWeightKg: 0 },
+        tyres: { frontWidthMm: 35, rearWidthMm: 35, tubeType: 'tubeless' },
+      }),
+    )
+    expect(result.systemWeightKg).toBe(104)
+    expect(result.frontLoadPercent).toBe(40)
+    expect(result.rearLoadPercent).toBe(60)
+    expect(result.front.wheelLoadKg).toBeCloseTo(41.6, 5)
+    expect(result.rear.wheelLoadKg).toBeCloseTo(62.4, 5)
+    const widthPow = 35 ** 1.5785
+    const frontPsi =
+      (153.6 * (41.6 * 2.2046226218)) / widthPow - 7.1685
+    const rearPsi =
+      (153.6 * (62.4 * 2.2046226218)) / widthPow - 7.1685
+    expect(kpaToPsi(result.front.clampedKpa)).toBeCloseTo(frontPsi, 4)
+    expect(kpaToPsi(result.rear.clampedKpa)).toBeCloseTo(rearPsi, 4)
+    expect(formatPressure(result.front.clampedKpa, 'psi')).toBe('44')
+    expect(formatPressure(result.rear.clampedKpa, 'psi')).toBe('70')
+    expect(result.rear.clampedKpa / result.front.clampedKpa).toBeGreaterThan(1.5)
+  })
 })

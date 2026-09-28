@@ -17,6 +17,11 @@ import {
 import { WeatherSection } from './components/WeatherSection'
 import { psiToKpa } from './calculator/units'
 import { fetchProcessedRideWeather, type SessionCoordinates } from './weather/rideWeatherService'
+import { createOpenMeteoProvider } from './weather/openMeteoProvider'
+import { scheduleLocationSearch } from './weather/locationSearch'
+import { buildWeatherPreview, type WeatherPreviewModel } from './weather/weatherPreview'
+import { formatPlaceLabel } from './weather/geocoding'
+import type { GeoPlace } from './weather/weatherProvider'
 import {
   addBike,
   createId,
@@ -57,7 +62,14 @@ export default function App() {
   const [weatherOutcome, setWeatherOutcome] = useState<WeatherPressureOutcome | null>(null)
   const [deviceCoords, setDeviceCoords] = useState<SessionCoordinates | null>(null)
   const [deviceError, setDeviceError] = useState<string | null>(null)
+  const [selectedPlace, setSelectedPlace] = useState<SessionCoordinates | null>(null)
+  const [suggestions, setSuggestions] = useState<GeoPlace[]>([])
+  const [searchStatus, setSearchStatus] = useState<'idle' | 'loading' | 'results' | 'empty' | 'error'>('idle')
+  const [searchError, setSearchError] = useState<string | null>(null)
+  const [preview, setPreview] = useState<WeatherPreviewModel | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
   const [calculating, setCalculating] = useState(false)
+  const weatherProvider = useMemo(() => createOpenMeteoProvider(), [])
 
   const selectedBike = useMemo(() => getSelectedBike(state), [state])
 
@@ -94,8 +106,110 @@ export default function App() {
   }
 
   function patchWeather(patch: Partial<WeatherSettingsStored>) {
+    if (typeof patch.locationSearch === 'string') {
+      const next = patch.locationSearch.trim()
+      setSelectedPlace((current) => (current && next === current.label ? current : null))
+    }
     setApp((prev) => ({ ...prev, weather: { ...prev.weather, ...patch } }))
   }
+
+  function selectPlace(place: GeoPlace) {
+    const label = formatPlaceLabel(place)
+    setSelectedPlace({ latitude: place.latitude, longitude: place.longitude, label })
+    setSuggestions([])
+    setSearchStatus('idle')
+    setSearchError(null)
+    setApp((prev) => ({
+      ...prev,
+      weather: { ...prev.weather, locationSearch: label, locationLabel: label },
+    }))
+  }
+
+  useEffect(() => {
+    if (!state.weather.enabled || state.weather.locationMode !== 'search') {
+      setSuggestions([])
+      return
+    }
+    return scheduleLocationSearch(
+      state.weather.locationSearch,
+      selectedPlace?.label ?? null,
+      (query, limit) => weatherProvider.searchPlaces(query, limit),
+      {
+        onLoading: () => setSearchStatus('loading'),
+        onResults: (places) => {
+          setSuggestions(places)
+          setSearchError(null)
+          setSearchStatus('results')
+        },
+        onEmpty: () => {
+          setSuggestions([])
+          setSearchError(null)
+          setSearchStatus('empty')
+        },
+        onError: () => {
+          setSuggestions([])
+          setSearchStatus('error')
+          setSearchError('Location search failed.')
+        },
+        onClear: () => {
+          setSuggestions([])
+          setSearchStatus('idle')
+          setSearchError(null)
+        },
+      },
+    )
+  }, [
+    state.weather.enabled,
+    state.weather.locationMode,
+    state.weather.locationSearch,
+    selectedPlace?.label,
+    weatherProvider,
+  ])
+
+  useEffect(() => {
+    if (!state.weather.enabled) {
+      setPreview(null)
+      setPreviewLoading(false)
+      return
+    }
+    const place = state.weather.locationMode === 'device' ? deviceCoords : selectedPlace
+    if (!place) {
+      setPreview(null)
+      setPreviewLoading(false)
+      return
+    }
+    let cancelled = false
+    setPreviewLoading(true)
+    fetchProcessedRideWeather(state.weather, deviceCoords, weatherProvider, new Date(), selectedPlace)
+      .then((processed) => {
+        if (cancelled) return
+        setPreview(buildWeatherPreview(state.weather, processed))
+        setPreviewLoading(false)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setPreview(
+          buildWeatherPreview(state.weather, {
+            available: false,
+            locationLabel: place.label,
+            rideTempC: 0,
+            isWetForecast: false,
+            providerId: weatherProvider.id,
+            attribution: '',
+            confidence: 'none',
+          }),
+        )
+        setPreviewLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [
+    state.weather,
+    deviceCoords,
+    selectedPlace,
+    weatherProvider,
+  ])
 
   function useMyLocation() {
     setDeviceError(null)
@@ -158,7 +272,13 @@ export default function App() {
     let processedWeather = null
     if (state.weather.enabled) {
       try {
-        processedWeather = await fetchProcessedRideWeather(state.weather, deviceCoords)
+        processedWeather = await fetchProcessedRideWeather(
+          state.weather,
+          deviceCoords,
+          weatherProvider,
+          new Date(),
+          selectedPlace,
+        )
         if (processedWeather.available && processedWeather.locationLabel) {
           setApp((prev) => ({
             ...prev,
@@ -581,8 +701,14 @@ export default function App() {
           weather={state.weather}
           deviceCoords={deviceCoords}
           deviceError={deviceError}
+          suggestions={suggestions}
+          searchStatus={searchStatus}
+          searchError={searchError}
+          preview={preview}
+          previewLoading={previewLoading}
           onPatch={patchWeather}
           onUseMyLocation={useMyLocation}
+          onSelectPlace={selectPlace}
         />
 
         <section className="rounded border border-slate-100 bg-slate-50 p-3">

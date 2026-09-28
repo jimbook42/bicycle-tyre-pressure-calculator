@@ -1,4 +1,7 @@
 import type { SessionCoordinates } from '../weather/rideWeatherService'
+import { formatPlaceLabel } from '../weather/geocoding'
+import type { WeatherPreviewModel } from '../weather/weatherPreview'
+import type { GeoPlace } from '../weather/weatherProvider'
 import type { WeatherSettingsStored } from '../types'
 
 function fieldClassName() {
@@ -9,16 +12,28 @@ interface WeatherSectionProps {
   weather: WeatherSettingsStored
   deviceCoords: SessionCoordinates | null
   deviceError: string | null
+  suggestions: GeoPlace[]
+  searchStatus: 'idle' | 'loading' | 'results' | 'empty' | 'error'
+  searchError: string | null
+  preview: WeatherPreviewModel | null
+  previewLoading: boolean
   onPatch: (patch: Partial<WeatherSettingsStored>) => void
   onUseMyLocation: () => void
+  onSelectPlace: (place: GeoPlace) => void
 }
 
 export function WeatherSection({
   weather,
   deviceCoords,
   deviceError,
+  suggestions,
+  searchStatus,
+  searchError,
+  preview,
+  previewLoading,
   onPatch,
   onUseMyLocation,
+  onSelectPlace,
 }: WeatherSectionProps) {
   return (
     <details
@@ -62,12 +77,37 @@ export function WeatherSection({
                 </label>
               </div>
               {weather.locationMode === 'search' && (
-                <input
-                  className={fieldClassName()}
-                  placeholder="City or place name"
-                  value={weather.locationSearch}
-                  onChange={(e) => onPatch({ locationSearch: e.target.value })}
-                />
+                <div>
+                  <input
+                    className={fieldClassName()}
+                    placeholder="City or place name"
+                    value={weather.locationSearch}
+                    onChange={(e) => onPatch({ locationSearch: e.target.value })}
+                    aria-label="Search location"
+                  />
+                  {searchStatus === 'loading' && (
+                    <p className="mt-1 text-xs text-slate-500">Searching…</p>
+                  )}
+                  {searchError && <p className="mt-1 text-xs text-red-600">{searchError}</p>}
+                  {searchStatus === 'empty' && (
+                    <p className="mt-1 text-xs text-slate-500">No matching places.</p>
+                  )}
+                  {suggestions.length > 0 && (
+                    <ul className="mt-1 overflow-hidden rounded border border-slate-200 bg-white">
+                      {suggestions.map((place) => (
+                        <li key={`${place.name}-${place.admin1 ?? ''}-${place.country ?? ''}`}>
+                          <button
+                            type="button"
+                            className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
+                            onClick={() => onSelectPlace(place)}
+                          >
+                            {formatPlaceLabel(place)}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               )}
               {weather.locationMode === 'device' && (
                 <div className="mt-2 space-y-1">
@@ -215,6 +255,27 @@ export function WeatherSection({
               Weather data by Open-Meteo.com. Non-commercial use is supported without an API key;
               commercial use may need separate licensing.
             </p>
+
+            {(previewLoading || preview) && (
+              <div className="rounded border border-slate-200 bg-slate-50 p-3 text-sm">
+                <p className="font-medium">{preview?.locationLabel || weather.locationLabel}</p>
+                <p className="text-slate-600">{preview?.plan}</p>
+                {previewLoading && <p className="mt-1 text-slate-500">Loading forecast…</p>}
+                {preview?.unavailable && !previewLoading && (
+                  <p className="mt-1 text-amber-800">
+                    Weather unavailable — using standard pressure calculation.
+                  </p>
+                )}
+                {preview && !preview.unavailable && !previewLoading && (
+                  <div className="mt-1 space-y-0.5">
+                    <p>Expected ride weather</p>
+                    <p>{preview.temperatureLine}</p>
+                    <p>{preview.rainLine}</p>
+                    <p>{preview.wetLine}</p>
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>

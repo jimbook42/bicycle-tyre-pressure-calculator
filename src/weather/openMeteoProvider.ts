@@ -5,6 +5,7 @@ import {
   durationWeightedRideTemperatureC,
   forecastWetDuringRide,
   resolveRideWindow,
+  temperatureRangeOverRideC,
 } from './forecastProcessor'
 import type {
   FetchLike,
@@ -107,12 +108,15 @@ export async function buildProcessedRideWeather(
     }
   }
   const rideTempC = durationWeightedRideTemperatureC(hourly, window)
+  const { minC, maxC } = temperatureRangeOverRideC(hourly, window)
   const currentAmbientTempC = currentAmbientFromHourly(hourly, timing.referenceNow)
   const isWetForecast = forecastWetDuringRide(hourly, window)
   return {
     available: true,
     locationLabel,
     rideTempC,
+    windowTempMinC: minC,
+    windowTempMaxC: maxC,
     currentAmbientTempC,
     isWetForecast,
     providerId: provider.id,

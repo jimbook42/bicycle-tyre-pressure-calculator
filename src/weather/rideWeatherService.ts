@@ -1,5 +1,5 @@
 import { DURATION_PRESET_MINUTES } from '../data/weatherConstants'
-import { formatPlaceLabel, searchLocations } from './geocoding'
+import { formatPlaceLabel } from './geocoding'
 import { buildProcessedRideWeather, createOpenMeteoProvider } from './openMeteoProvider'
 import { resolveRideWindow } from './forecastProcessor'
 import type { ProcessedRideWeather, RideTimingRequest, WeatherProvider } from './weatherProvider'
@@ -32,25 +32,19 @@ export function buildTimingRequest(
   }
 }
 
-export async function resolveRideLocation(
+/** Use a place the user selected, or device coordinates. Do not guess from free text. */
+export function resolveRideLocation(
   weather: WeatherSettingsStored,
   deviceCoords: SessionCoordinates | null,
-  provider: WeatherProvider,
-): Promise<{ latitude: number; longitude: number; label: string } | null> {
-  if (weather.locationMode === 'device') {
-    if (!deviceCoords) return null
-    return deviceCoords
-  }
-  if (weather.locationMode === 'search') {
-    const query = weather.locationSearch.trim() || weather.locationLabel.trim()
-    if (query.length < 2) return null
-    const places = await provider.searchPlaces(query, 1)
-    if (places.length === 0) return null
-    return {
-      latitude: places[0].latitude,
-      longitude: places[0].longitude,
-      label: formatPlaceLabel(places[0]),
-    }
+  selectedPlace: SessionCoordinates | null = null,
+): SessionCoordinates | null {
+  if (weather.locationMode === 'device') return deviceCoords
+  if (
+    selectedPlace &&
+    (weather.locationLabel === selectedPlace.label ||
+      weather.locationSearch.trim() === selectedPlace.label)
+  ) {
+    return selectedPlace
   }
   return null
 }
@@ -60,8 +54,9 @@ export async function fetchProcessedRideWeather(
   deviceCoords: SessionCoordinates | null,
   provider: WeatherProvider = createOpenMeteoProvider(),
   referenceNow = new Date(),
+  selectedPlace: SessionCoordinates | null = null,
 ): Promise<ProcessedRideWeather> {
-  const location = await resolveRideLocation(weather, deviceCoords, provider)
+  const location = resolveRideLocation(weather, deviceCoords, selectedPlace)
   if (!location) {
     return {
       available: false,
@@ -84,4 +79,4 @@ export async function fetchProcessedRideWeather(
   )
 }
 
-export { createOpenMeteoProvider, searchLocations, resolveRideWindow }
+export { createOpenMeteoProvider, resolveRideWindow, formatPlaceLabel }

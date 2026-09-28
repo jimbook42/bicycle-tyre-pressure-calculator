@@ -4,26 +4,25 @@ This app estimates **starting** tyre pressures. It is not a substitute for manuf
 
 ## Baseline pressure (Berto chart approximation)
 
-Wheel pressure is derived from an **empirical fit** to Frank Berto’s tyre-drop chart data (load vs width vs pressure). This is **not** presented as Berto’s original equation.
-
-Implemented form (constants in `src/data/constants.ts`):
+Wheel pressure is a **regression fit to Frank Berto’s 15% tyre-drop chart**, not an equation Berto published. Dave at Bike Tinker (2010) fit Berto’s measured chart points as:
 
 ```
-PSI = A × load_lbf / width_mm^B + C
+PSI = 153.6 × load_lbf / width_mm^1.5785 − 7.1685
 ```
 
-- `A = 153.6`, `B = 1.5785`, `C = -7.1685`
-- `load_lbf` is per-wheel load (system mass × front/rear load share)
+Constants live in `src/data/constants.ts` (`BERTO_APPROX_A`, `BERTO_APPROX_B`, `BERTO_APPROX_C`). The fit targets the pressure that produced about a **15% drop in tyre height** on the tyres Berto measured. Fifteen percent was a manufacturer deflection recommendation that Berto charted; it is a starting-point criterion, not a measured proof of the single best pressure for every modern tyre.
+
+- `load_lbf` is per-wheel load (system mass × front/rear load share × 2.2046226218)
 - `width_mm` is the **effective** tyre width (see below)
+- Road uses the fit unchanged. Gravel multiplies the result by 0.9 (`GRAVEL_SURFACE_PRESSURE_FACTOR`), a separate modelling choice, not part of Berto’s chart.
+- Results below ~10 PSI are clamped to `MODEL_MIN_PRESSURE_KPA`.
 
-The fit is widely used as a calculator approximation; it has a limited valid domain. Results below ~10 PSI are clamped to a minimum (`MODEL_MIN_PRESSURE_KPA`) to avoid nonsensical negatives from the fit tail.
+**References:**
 
-**References (for the approximation, not endorsement of every detail):**
+- Frank Berto’s 15% tyre-drop chart, discussed by Jan Heine in *Bicycle Quarterly* (pressures for a stated drop, using wheel load, not total bike weight)
+- Dave, “Optimal Tire Pressure for bicycles,” Bike Tinker, 2010 — source of the coefficient fit above
 
-- Frank Berto, *Adventure Cyclist* / tyre drop chart work (load–pressure–width relationship)
-- Community re-implementations of the chart fit (same coefficient family)
-
-Validate against published chart examples when changing coefficients.
+The coefficients were not re-derived from Berto’s original plot in this repository. Treat them as that published community fit, valid as an approximation inside the chart’s measured domain, not as Berto’s own formula.
 
 ## Effective tyre width
 
@@ -34,6 +33,22 @@ Validate against published chart examples when changing coefficients.
 ## Load split
 
 Default **40% front / 60% rear**. Advanced override available. Rear pressure is normally higher because rear load is higher.
+
+The pressure equation is nearly linear in wheel load, so a 40/60 split produces a large front/rear gap. For a 104 kg system on 35 mm tyres the fit evaluates to about **44 PSI front and 70 PSI rear** (41.6 kg / 62.4 kg per wheel). That gap is the load split passing through this equation. It is not an extra front/rear correction.
+
+Frank Berto’s chart, as republished with Jan Heine’s measurements, also uses **per-wheel load**, so different front and rear pressures are what that chart shows. Heine later warned that running the front much softer than the rear can be unstable under braking, and that many riders then raise the front toward the rear figure. This app does not apply that practical override: doing so would replace the load-based chart rather than fix a calculation error.
+
+## Worked example (104 kg, 35 mm, road, 40/60)
+
+Wheel loads: front 41.6 kg (91.7 lbf), rear 62.4 kg (137.6 lbf).
+
+```
+35^1.5785 ≈ 273.72
+front PSI = 153.6 × 91.7 / 273.72 − 7.1685 ≈ 44.3 → 44 PSI displayed
+rear PSI  = 153.6 × 137.6 / 273.72 − 7.1685 ≈ 70.0 → 70 PSI displayed
+```
+
+35 mm and these wheel loads sit inside the width and load range Berto charted (roughly 20–37+ mm and touring wheel loads). The result is the 15% drop fit, not a claim that 44 PSI will feel firm on a modern 35 mm road tyre. No tube-type offset is applied.
 
 ## Ride type
 

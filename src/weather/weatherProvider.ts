@@ -38,6 +38,9 @@ export interface ProcessedRideWeather {
   rideTempC: number
   currentAmbientTempC?: number
   isWetForecast: boolean
+  /** Lowest and highest ambient samples inside the ride window. */
+  windowTempMinC?: number
+  windowTempMaxC?: number
   providerId: string
   attribution: string
   confidence: 'full' | 'partial' | 'none'

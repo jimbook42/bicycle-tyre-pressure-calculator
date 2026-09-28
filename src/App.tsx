@@ -14,6 +14,11 @@ import {
   resolveInflationTemperature,
   type WeatherPressureOutcome,
 } from './calculator/weatherAdjustment'
+import { AppHeader } from './components/AppHeader'
+import { BottomTabs, type AppTab } from './components/BottomTabs'
+import { PressureResultDial } from './components/PressureResultDial'
+import { RiderWeightDial } from './components/RiderWeightDial'
+import { ScienceModal } from './components/ScienceModal'
 import { WeatherSection } from './components/WeatherSection'
 import { psiToKpa } from './calculator/units'
 import { fetchProcessedRideWeather, type SessionCoordinates } from './weather/rideWeatherService'
@@ -42,10 +47,27 @@ import type {
   TubeType,
   WeatherSettingsStored,
 } from './types'
+import {
+  btnPrimary,
+  btnRaised,
+  cardInner,
+  cardOuter,
+  fieldClassName,
+  mutedText,
+  sectionTitle,
+  successPanel,
+  warnBox,
+  pillActive,
+  pillIdle,
+  pageShell,
+} from './ui/softUi'
 
-function fieldClassName() {
-  return 'mt-1 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm'
-}
+const RIDE_TYPE_OPTIONS: { value: RideType; label: string }[] = [
+  { value: 'road', label: 'Road' },
+  { value: 'gravel', label: 'Gravel' },
+  { value: 'commute', label: 'Commute' },
+  { value: 'mixed', label: 'Mixed' },
+]
 
 export default function App() {
   const [state, setState] = useState<AppPersistence>(() => loadAppPersistence())
@@ -53,7 +75,6 @@ export default function App() {
   const [adjustment, setAdjustment] = useState<PersonalisationAdjustment | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
-  const [historyOpen, setHistoryOpen] = useState(false)
   const [actualFront, setActualFront] = useState('')
   const [actualRear, setActualRear] = useState('')
   const [rideFeel, setRideFeel] = useState<RideFeel>('good')
@@ -69,6 +90,8 @@ export default function App() {
   const [preview, setPreview] = useState<WeatherPreviewModel | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [calculating, setCalculating] = useState(false)
+  const [activeTab, setActiveTab] = useState<AppTab>('setup')
+  const [scienceOpen, setScienceOpen] = useState(false)
   const weatherProvider = useMemo(() => createOpenMeteoProvider(), [])
 
   const selectedBike = useMemo(() => getSelectedBike(state), [state])
@@ -76,6 +99,12 @@ export default function App() {
   useEffect(() => {
     saveAppPersistence(state)
   }, [state])
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', state.darkMode)
+    const meta = document.querySelector('meta[name="theme-color"]')
+    if (meta) meta.setAttribute('content', state.darkMode ? '#121214' : '#f3efe6')
+  }, [state.darkMode])
 
   const unit = state.pressureUnit
 
@@ -403,29 +432,68 @@ export default function App() {
   }
 
   const canCalculate = buildCalculatorInput(state, selectedBike) !== null
+  const riderKg = parseNum(state.riderWeightKg, 75)
 
   return (
-    <div className="mx-auto min-h-screen max-w-xl px-4 py-8">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold">Tyre pressure calculator</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Quick starting pressures for front and rear — adjust on the ride as needed.
-        </p>
-      </header>
+    <div className={`${pageShell} overflow-x-hidden`}>
+      <AppHeader
+        darkMode={state.darkMode}
+        onToggleDark={() => updateApp('darkMode', !state.darkMode)}
+        onOpenScience={() => setScienceOpen(true)}
+      />
+      <ScienceModal open={scienceOpen} onClose={() => setScienceOpen(false)} />
 
+      {activeTab === 'history' ? (
+        <section className={`space-y-3 p-4 ${cardOuter}`}>
+          <h2 className={sectionTitle}>Ride history</h2>
+          <ul className="space-y-3 text-sm">
+            {state.feedback.length === 0 && (
+              <li className={mutedText}>No ride notes yet.</li>
+            )}
+            {state.feedback.slice(0, 20).map((entry) => (
+              <li key={entry.id} className={`border-t border-[#e8e2d8] pt-2 dark:border-[#333]`}>
+                <p>
+                  {new Date(entry.createdAt).toLocaleString()} · {entry.bikeName} · {entry.rideType}
+                </p>
+                <p className={mutedText}>
+                  Recommended {formatPressure(entry.baselineFrontKpa, unit)}/
+                  {formatPressure(entry.baselineRearKpa, unit)} {unitLabel(unit)} · rode{' '}
+                  {formatPressure(entry.actualFrontKpa, unit)}/
+                  {formatPressure(entry.actualRearKpa, unit)} ·{' '}
+                  {entry.result === 'too_hard'
+                    ? 'Too hard'
+                    : entry.result === 'too_soft'
+                      ? 'Too soft'
+                      : 'Good'}
+                </p>
+                {entry.weatherLocationLabel && (
+                  <p className={mutedText}>{entry.weatherLocationLabel}</p>
+                )}
+                {entry.notes && <p className={mutedText}>{entry.notes}</p>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : (
       <form
-        className="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+        className={`space-y-4 p-4 ${cardOuter}`}
         onSubmit={(e) => {
           e.preventDefault()
           onCalculate()
         }}
       >
-        <section className="space-y-3 rounded border border-slate-100 bg-slate-50 p-3">
-          <h2 className="text-sm font-medium">Rider</h2>
+        <section className={`space-y-3 p-3 ${cardInner}`}>
+          <h2 className={sectionTitle}>Rider</h2>
+          <RiderWeightDial
+            kg={riderKg}
+            min={40}
+            max={120}
+            onChange={(kg) => updateApp('riderWeightKg', String(kg))}
+          />
           <label className="block text-sm">
-            Rider weight (kg)
+            Exact weight (kg)
             <input
-              className={fieldClassName()}
+              className={fieldClassName}
               inputMode="decimal"
               value={state.riderWeightKg}
               onChange={(e) => updateApp('riderWeightKg', e.target.value)}
@@ -433,12 +501,12 @@ export default function App() {
           </label>
         </section>
 
-        <section className="space-y-3 rounded border border-slate-100 p-3">
+        <section className={`space-y-3 p-3 ${cardInner}`}>
           <div className="flex flex-wrap items-end gap-2">
             <label className="min-w-[10rem] flex-1 text-sm">
               Bike
               <select
-                className={fieldClassName()}
+                className={fieldClassName}
                 value={state.selectedBikeId}
                 onChange={(e) => updateApp('selectedBikeId', e.target.value)}
               >
@@ -451,14 +519,14 @@ export default function App() {
             </label>
             <button
               type="button"
-              className="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50"
+              className={btnRaised}
               onClick={() => setApp((prev) => addBike(prev))}
             >
               Add bike
             </button>
             <button
               type="button"
-              className="rounded border border-red-200 px-3 py-2 text-sm text-red-700 hover:bg-red-50 disabled:opacity-40"
+              className={`${btnRaised} text-[#a63d2a] disabled:opacity-40`}
               disabled={state.bikes.length <= 1}
               onClick={() => {
                 if (
@@ -476,7 +544,7 @@ export default function App() {
           <label className="block text-sm">
             Bike name
             <input
-              className={fieldClassName()}
+              className={fieldClassName}
               value={selectedBike.name}
               onChange={(e) => patchSelectedBike({ name: e.target.value })}
             />
@@ -485,7 +553,7 @@ export default function App() {
           <label className="block text-sm">
             Bike weight (kg)
             <input
-              className={fieldClassName()}
+              className={fieldClassName}
               inputMode="decimal"
               value={selectedBike.weightKg}
               onChange={(e) => patchSelectedBike({ weightKg: e.target.value })}
@@ -496,7 +564,7 @@ export default function App() {
             <label className="text-sm">
               Front tyre width (mm, nominal)
               <input
-                className={fieldClassName()}
+                className={fieldClassName}
                 inputMode="decimal"
                 value={selectedBike.frontWidthMm}
                 onChange={(e) => patchSelectedBike({ frontWidthMm: e.target.value })}
@@ -505,7 +573,7 @@ export default function App() {
             <label className="text-sm">
               Rear tyre width (mm, nominal)
               <input
-                className={fieldClassName()}
+                className={fieldClassName}
                 inputMode="decimal"
                 value={selectedBike.rearWidthMm}
                 onChange={(e) => patchSelectedBike({ rearWidthMm: e.target.value })}
@@ -516,7 +584,7 @@ export default function App() {
           <label className="block text-sm">
             Tube type
             <select
-              className={fieldClassName()}
+              className={fieldClassName}
               value={selectedBike.tubeType}
               onChange={(e) => patchSelectedBike({ tubeType: e.target.value as TubeType })}
             >
@@ -529,7 +597,7 @@ export default function App() {
           <details
             open={state.advancedOpen}
             onToggle={(e) => updateApp('advancedOpen', (e.target as HTMLDetailsElement).open)}
-            className="rounded border border-slate-200 p-3"
+            className={`${cardInner} p-3`}
           >
             <summary className="cursor-pointer text-sm font-medium">Advanced setup (optional)</summary>
             <div className="mt-3 space-y-3">
@@ -537,7 +605,7 @@ export default function App() {
                 <label className="text-sm">
                   Front measured width (mm)
                   <input
-                    className={fieldClassName()}
+                    className={fieldClassName}
                     value={selectedBike.advanced.frontMeasuredWidthMm}
                     onChange={(e) =>
                       patchSelectedAdvanced({ frontMeasuredWidthMm: e.target.value })
@@ -547,7 +615,7 @@ export default function App() {
                 <label className="text-sm">
                   Rear measured width (mm)
                   <input
-                    className={fieldClassName()}
+                    className={fieldClassName}
                     value={selectedBike.advanced.rearMeasuredWidthMm}
                     onChange={(e) =>
                       patchSelectedAdvanced({ rearMeasuredWidthMm: e.target.value })
@@ -559,7 +627,7 @@ export default function App() {
                 <label className="text-sm">
                   Rim internal width (mm)
                   <input
-                    className={fieldClassName()}
+                    className={fieldClassName}
                     value={selectedBike.advanced.rimInternalWidthMm}
                     onChange={(e) =>
                       patchSelectedAdvanced({ rimInternalWidthMm: e.target.value })
@@ -569,7 +637,7 @@ export default function App() {
                 <label className="text-sm">
                   Rim type
                   <select
-                    className={fieldClassName()}
+                    className={fieldClassName}
                     value={selectedBike.advanced.rimType}
                     onChange={(e) =>
                       patchSelectedAdvanced({
@@ -586,7 +654,7 @@ export default function App() {
               <label className="block text-sm">
                 Wheel diameter (inches)
                 <input
-                  className={fieldClassName()}
+                  className={fieldClassName}
                   value={selectedBike.advanced.wheelDiameterInches}
                   onChange={(e) =>
                     patchSelectedAdvanced({ wheelDiameterInches: e.target.value })
@@ -596,7 +664,7 @@ export default function App() {
               <label className="block text-sm">
                 Front wheel load (%)
                 <input
-                  className={fieldClassName()}
+                  className={fieldClassName}
                   placeholder="Default 40"
                   value={selectedBike.advanced.frontLoadPercent}
                   onChange={(e) =>
@@ -610,7 +678,7 @@ export default function App() {
                   <label>
                     Front min
                     <input
-                      className={fieldClassName()}
+                      className={fieldClassName}
                       value={selectedBike.advanced.frontMinPsi}
                       onChange={(e) => patchSelectedAdvanced({ frontMinPsi: e.target.value })}
                     />
@@ -618,7 +686,7 @@ export default function App() {
                   <label>
                     Front max
                     <input
-                      className={fieldClassName()}
+                      className={fieldClassName}
                       value={selectedBike.advanced.frontMaxPsi}
                       onChange={(e) => patchSelectedAdvanced({ frontMaxPsi: e.target.value })}
                     />
@@ -626,7 +694,7 @@ export default function App() {
                   <label>
                     Rear min
                     <input
-                      className={fieldClassName()}
+                      className={fieldClassName}
                       value={selectedBike.advanced.rearMinPsi}
                       onChange={(e) => patchSelectedAdvanced({ rearMinPsi: e.target.value })}
                     />
@@ -634,7 +702,7 @@ export default function App() {
                   <label>
                     Rear max
                     <input
-                      className={fieldClassName()}
+                      className={fieldClassName}
                       value={selectedBike.advanced.rearMaxPsi}
                       onChange={(e) => patchSelectedAdvanced({ rearMaxPsi: e.target.value })}
                     />
@@ -645,21 +713,23 @@ export default function App() {
           </details>
         </section>
 
-        <section className="space-y-3">
-          <h2 className="text-sm font-medium">This ride</h2>
-          <label className="block text-sm">
-            Ride type
-            <select
-              className={fieldClassName()}
-              value={state.rideType}
-              onChange={(e) => updateApp('rideType', e.target.value as RideType)}
-            >
-              <option value="road">Road</option>
-              <option value="gravel">Gravel</option>
-              <option value="commute">Commute</option>
-              <option value="mixed">Mixed</option>
-            </select>
-          </label>
+        <section className={`space-y-3 p-3 ${cardInner}`}>
+          <h2 className={sectionTitle}>This ride</h2>
+          <div>
+            <p className="text-sm font-medium">Ride type</p>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {RIDE_TYPE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={state.rideType === opt.value ? pillActive : pillIdle}
+                  onClick={() => updateApp('rideType', opt.value)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {state.rideType === 'mixed' && (
             <label className="block text-sm">
@@ -669,17 +739,17 @@ export default function App() {
                 min={0}
                 max={100}
                 step={1}
-                className="mt-2 w-full"
+                className="soft-range mt-2 w-full"
                 value={Math.min(100, Math.max(0, parseNum(state.gravelPercent, 0)))}
                 onChange={(e) => updateApp('gravelPercent', e.target.value)}
               />
               <input
-                className={`${fieldClassName()} mt-2`}
+                className={`${fieldClassName} mt-2`}
                 inputMode="numeric"
                 value={state.gravelPercent}
                 onChange={(e) => updateApp('gravelPercent', e.target.value)}
               />
-              <span className="mt-1 block text-xs text-slate-500">
+              <span className={`mt-1 block text-xs ${mutedText}`}>
                 Road portion: {Math.max(0, 100 - parseNum(state.gravelPercent, 0))}%
               </span>
             </label>
@@ -689,7 +759,7 @@ export default function App() {
             Pack weight (kg)
             {state.rideType === 'commute' ? ' — required' : ' — optional'}
             <input
-              className={fieldClassName()}
+              className={fieldClassName}
               inputMode="decimal"
               value={state.packWeightKg}
               onChange={(e) => updateApp('packWeightKg', e.target.value)}
@@ -711,12 +781,12 @@ export default function App() {
           onSelectPlace={selectPlace}
         />
 
-        <section className="rounded border border-slate-100 bg-slate-50 p-3">
-          <h2 className="text-sm font-medium">Settings</h2>
+        <section className={`p-3 ${cardInner}`}>
+          <h2 className={sectionTitle}>Settings</h2>
           <label className="mt-2 block text-sm">
             Pressure unit
             <select
-              className={fieldClassName()}
+              className={fieldClassName}
               value={state.pressureUnit}
               onChange={(e) => updateApp('pressureUnit', e.target.value as PressureUnit)}
             >
@@ -735,51 +805,44 @@ export default function App() {
           </label>
         </section>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-[#a63d2a]">{error}</p>}
 
-        <button
-          type="submit"
-          disabled={calculating}
-          className="w-full rounded bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
-        >
-          {calculating ? 'Calculating…' : 'Calculate'}
+        <button type="submit" disabled={calculating} className={btnPrimary}>
+          {calculating ? 'Calculating…' : 'Calculate pressure'}
         </button>
       </form>
+      )}
 
-      {result && adjustment && (
-        <section className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-          <p className="text-sm font-medium text-emerald-900">
+      {activeTab === 'setup' && result && adjustment && (
+        <section className={successPanel}>
+          <p className="text-sm font-medium">
             {weatherOutcome?.active
               ? 'Inflate to approximately'
               : 'Recommended starting pressure'}
           </p>
           {weatherOutcome && !weatherOutcome.active && weatherOutcome.unavailableMessage && (
-            <p className="mt-1 text-sm text-amber-900">{weatherOutcome.unavailableMessage}</p>
+            <p className={`mt-1 text-sm ${warnBox}`}>{weatherOutcome.unavailableMessage}</p>
           )}
           {weatherOutcome?.active && weatherOutcome.compactLine && (
-            <p className="mt-1 text-sm text-emerald-900">{weatherOutcome.compactLine}</p>
+            <p className={`mt-1 text-sm ${mutedText}`}>{weatherOutcome.compactLine}</p>
           )}
           {state.applyPersonalisation && adjustment.active && !weatherOutcome?.active && (
-            <p className="mt-1 text-sm text-emerald-900">{adjustment.summary}</p>
+            <p className={`mt-1 text-sm ${mutedText}`}>{adjustment.summary}</p>
           )}
-          <div className="mt-3 grid grid-cols-2 gap-4 text-center">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-emerald-800">Front</p>
-              <p className="text-3xl font-semibold tabular-nums text-emerald-950">
-                {formatPressure(frontDisplayKpa(), unit)}{' '}
-                <span className="text-lg">{unitLabel(unit)}</span>
-              </p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-emerald-800">Rear</p>
-              <p className="text-3xl font-semibold tabular-nums text-emerald-950">
-                {formatPressure(rearDisplayKpa(), unit)}{' '}
-                <span className="text-lg">{unitLabel(unit)}</span>
-              </p>
-            </div>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <PressureResultDial
+              label="Front"
+              value={formatPressure(frontDisplayKpa(), unit)}
+              unit={unitLabel(unit)}
+            />
+            <PressureResultDial
+              label="Rear"
+              value={formatPressure(rearDisplayKpa(), unit)}
+              unit={unitLabel(unit)}
+            />
           </div>
           {weatherOutcome?.active && (
-            <p className="mt-2 text-center text-sm text-emerald-900">
+            <p className={`mt-2 text-center text-sm ${mutedText}`}>
               Target riding pressure: front{' '}
               {formatPressure(weatherOutcome.front!.targetRidingGaugeKpa, unit)} / rear{' '}
               {formatPressure(weatherOutcome.rear!.targetRidingGaugeKpa, unit)} {unitLabel(unit)}
@@ -787,7 +850,7 @@ export default function App() {
           )}
 
           {(result.warnings.length > 0 || (weatherOutcome?.warnings.length ?? 0) > 0) && (
-            <ul className="mt-3 list-disc pl-5 text-sm text-amber-900">
+            <ul className={`mt-3 list-disc pl-5 text-sm ${warnBox}`}>
               {[...result.warnings, ...(weatherOutcome?.warnings ?? [])].map((w) => (
                 <li key={w}>{w}</li>
               ))}
@@ -796,14 +859,14 @@ export default function App() {
 
           <button
             type="button"
-            className="mt-4 text-sm font-medium text-emerald-900 underline"
+            className={`mt-4 text-sm font-medium underline ${mutedText}`}
             onClick={() => setDetailsOpen((v) => !v)}
           >
             {detailsOpen ? 'Hide details' : 'Why? / Details'}
           </button>
 
           {detailsOpen && (
-            <div className="mt-3 space-y-2 border-t border-emerald-200 pt-3 text-sm text-emerald-950">
+            <div className={`mt-3 space-y-2 border-t border-[#e8e2d8] pt-3 text-sm dark:border-[#333]`}>
               <p>
                 <strong>Bike:</strong> {selectedBike.name}
               </p>
@@ -870,23 +933,23 @@ export default function App() {
                     <p key={note}>{note}</p>
                   ))}
                   {weatherOutcome.attribution && (
-                    <p className="text-xs text-emerald-800">{weatherOutcome.attribution}</p>
+                    <p className={`text-xs ${mutedText}`}>{weatherOutcome.attribution}</p>
                   )}
                 </>
               )}
               {result.notes.map((note) => (
-                <p key={note} className="text-emerald-900">
+                <p key={note} className={mutedText}>
                   {note}
                 </p>
               ))}
-              <p className="text-emerald-900">
+              <p className={mutedText}>
                 Ride notes are personal evidence stored on this device. They do not change the
                 baseline model.
               </p>
               {state.applyPersonalisation && (
                 <button
                   type="button"
-                  className="text-sm font-medium text-emerald-900 underline"
+                  className={`text-sm font-medium underline ${mutedText}`}
                   onClick={() => {
                     const key = evidenceKeyFor(state, selectedBike, result.systemWeightKg)
                     setApp((prev) => ({
@@ -909,13 +972,13 @@ export default function App() {
             </div>
           )}
 
-          <div className="mt-4 space-y-3 border-t border-emerald-200 pt-3">
-            <p className="text-sm font-medium text-emerald-950">After the ride</p>
+          <div className="mt-4 space-y-3 border-t border-[#e8e2d8] pt-3 dark:border-[#333]">
+            <p className="text-sm font-medium">After the ride</p>
             <div className="grid grid-cols-2 gap-3">
               <label className="text-sm">
                 Actual front ({unitLabel(unit)})
                 <input
-                  className={fieldClassName()}
+                  className={fieldClassName}
                   inputMode="decimal"
                   value={actualFront}
                   onChange={(e) => setActualFront(e.target.value)}
@@ -924,7 +987,7 @@ export default function App() {
               <label className="text-sm">
                 Actual rear ({unitLabel(unit)})
                 <input
-                  className={fieldClassName()}
+                  className={fieldClassName}
                   inputMode="decimal"
                   value={actualRear}
                   onChange={(e) => setActualRear(e.target.value)}
@@ -934,7 +997,7 @@ export default function App() {
             <label className="block text-sm">
               How did it feel?
               <select
-                className={fieldClassName()}
+                className={fieldClassName}
                 value={rideFeel}
                 onChange={(e) => setRideFeel(e.target.value as RideFeel)}
               >
@@ -946,65 +1009,28 @@ export default function App() {
             <label className="block text-sm">
               Notes (optional)
               <input
-                className={fieldClassName()}
+                className={fieldClassName}
                 value={rideNote}
                 onChange={(e) => setRideNote(e.target.value)}
               />
             </label>
-            {feedbackMessage && <p className="text-sm text-emerald-900">{feedbackMessage}</p>}
-            <button
-              type="button"
-              className="rounded border border-emerald-800 px-3 py-2 text-sm font-medium text-emerald-950"
-              onClick={saveRideFeedback}
-            >
+            {feedbackMessage && <p className={`text-sm ${mutedText}`}>{feedbackMessage}</p>}
+            <button type="button" className={btnRaised} onClick={saveRideFeedback}>
               Save ride note
             </button>
           </div>
         </section>
       )}
 
-      <section className="mt-6 rounded-lg border border-slate-200 bg-white p-4">
-        <button
-          type="button"
-          className="text-sm font-medium"
-          onClick={() => setHistoryOpen((open) => !open)}
-        >
-          {historyOpen ? 'Hide history' : `History (${state.feedback.length})`}
-        </button>
-        {historyOpen && (
-          <ul className="mt-3 space-y-3 text-sm">
-            {state.feedback.length === 0 && (
-              <li className="text-slate-500">No ride notes yet.</li>
-            )}
-            {state.feedback.slice(0, 20).map((entry) => (
-              <li key={entry.id} className="border-t border-slate-100 pt-2">
-                <p>
-                  {new Date(entry.createdAt).toLocaleString()} · {entry.bikeName} · {entry.rideType}
-                </p>
-                <p>
-                  Recommended {formatPressure(entry.baselineFrontKpa, unit)}/
-                  {formatPressure(entry.baselineRearKpa, unit)} {unitLabel(unit)} · rode{' '}
-                  {formatPressure(entry.actualFrontKpa, unit)}/
-                  {formatPressure(entry.actualRearKpa, unit)} ·{' '}
-                  {entry.result === 'too_hard'
-                    ? 'Too hard'
-                    : entry.result === 'too_soft'
-                      ? 'Too soft'
-                      : 'Good'}
-                </p>
-                {entry.weatherLocationLabel && (
-                  <p className="text-slate-600">{entry.weatherLocationLabel}</p>
-                )}
-                {entry.notes && <p className="text-slate-600">{entry.notes}</p>}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {!result && canCalculate && (
-        <p className="mt-4 text-center text-sm text-slate-500">Press Calculate to see pressures.</p>
+      {activeTab === 'setup' && !result && canCalculate && (
+        <p className={`mt-4 text-center text-sm ${mutedText}`}>Press Calculate to see pressures.</p>
       )}
+
+      <BottomTabs
+        active={activeTab}
+        historyCount={state.feedback.length}
+        onChange={setActiveTab}
+      />
     </div>
   )
 }

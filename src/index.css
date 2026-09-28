@@ -1,5 +1,64 @@
 @import 'tailwindcss';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+html {
+  @apply antialiased;
+}
+
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  @apply m-0 min-h-screen bg-[#f3efe6] text-[#2b2825] transition-colors duration-300 dark:bg-[#121214] dark:text-[#e8e6e1];
+}
+
+input[type='range'].soft-range {
+  @apply h-2 w-full appearance-none rounded-full bg-transparent;
+}
+
+input[type='range'].soft-range::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: #e8e2d8;
+  box-shadow: inset 3px 3px 6px rgba(0, 0, 0, 0.08), inset -3px -3px 6px rgba(255, 255, 255, 0.7);
+}
+
+.dark input[type='range'].soft-range::-webkit-slider-runnable-track {
+  background: #1a1a1c;
+  box-shadow: inset 3px 3px 8px rgba(0, 0, 0, 0.6), inset -3px -3px 8px rgba(255, 255, 255, 0.05);
+}
+
+input[type='range'].soft-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  margin-top: -8px;
+  border-radius: 9999px;
+  background: #fdfaf3;
+  box-shadow:
+    6px 6px 12px rgba(0, 0, 0, 0.1),
+    -4px -4px 10px rgba(255, 255, 255, 0.8);
+}
+
+.dark input[type='range'].soft-range::-webkit-slider-thumb {
+  background: #2a2a2e;
+  box-shadow:
+    6px 6px 12px rgba(0, 0, 0, 0.5),
+    -4px -4px 10px rgba(255, 255, 255, 0.06);
+}
+
+input[type='range'].soft-range::-moz-range-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: #e8e2d8;
+  box-shadow: inset 3px 3px 6px rgba(0, 0, 0, 0.08), inset -3px -3px 6px rgba(255, 255, 255, 0.7);
+}
+
+input[type='range'].soft-range::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 9999px;
+  background: #fdfaf3;
+  box-shadow:
+    6px 6px 12px rgba(0, 0, 0, 0.1),
+    -4px -4px 10px rgba(255, 255, 255, 0.8);
 }

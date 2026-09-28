@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  dominantWeatherCodeDuringRide,
   durationWeightedRideTemperatureC,
   forecastWetDuringRide,
   resolveRideWindow,
@@ -50,5 +51,20 @@ describe('forecastProcessor', () => {
     ]
     const window = { start, end: new Date(start.getTime() + 30 * 60_000), durationMinutes: 30 }
     expect(forecastWetDuringRide(hourly, window)).toBe(true)
+  })
+
+  it('picks the dominant weather code over the ride window', () => {
+    const start = new Date('2026-06-01T12:00:00')
+    const hourly: HourlyForecastPoint[] = [
+      { time: start, temperatureC: 12, precipitationMm: 0, weatherCode: 0 },
+      {
+        time: new Date(start.getTime() + 3_600_000),
+        temperatureC: 12,
+        precipitationMm: 0,
+        weatherCode: 61,
+      },
+    ]
+    const window = { start, end: new Date(start.getTime() + 2 * 3_600_000), durationMinutes: 120 }
+    expect(dominantWeatherCodeDuringRide(hourly, window)).toBe(61)
   })
 })

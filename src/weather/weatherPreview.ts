@@ -1,4 +1,5 @@
 import type { WetMode } from '../calculator/weatherAdjustment'
+import { weatherIconForCode } from './weatherIcons'
 import { durationMinutesFromSettings } from './rideWeatherService'
 import type { ProcessedRideWeather } from './weatherProvider'
 import type { WeatherSettingsStored } from '../types'
@@ -41,6 +42,7 @@ export function formatTemperatureWindow(weather: ProcessedRideWeather): string {
 export interface WeatherPreviewModel {
   locationLabel: string
   plan: string
+  weatherIcon: string
   temperatureLine: string
   rainLine: string
   wetLine: string
@@ -56,6 +58,7 @@ export function buildWeatherPreview(
     return {
       locationLabel: settings.locationLabel || processed?.locationLabel || 'Location not selected',
       plan,
+      weatherIcon: '🌡️',
       temperatureLine: '',
       rainLine: '',
       wetLine: '',
@@ -67,9 +70,11 @@ export function buildWeatherPreview(
     settings.timingMode === 'now' && processed.currentAmbientTempC !== undefined
       ? `Now ${Math.round(processed.currentAmbientTempC)}°C • `
       : ''
+  const code = processed.dominantWeatherCode ?? 0
   return {
     locationLabel: processed.locationLabel,
     plan,
+    weatherIcon: weatherIconForCode(code),
     temperatureLine: `${nowBit}${formatTemperatureWindow(processed)}`,
     rainLine: processed.isWetForecast ? 'Rain possible' : 'No rain in this ride window',
     wetLine: wet ? 'Wet adjustment: Applied' : 'Wet adjustment: Not applied',

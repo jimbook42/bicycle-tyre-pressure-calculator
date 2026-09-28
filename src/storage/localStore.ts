@@ -68,6 +68,7 @@ export function defaultAppPersistence(): AppPersistence {
   const bike = createBikeProfile({ name: 'My bike' })
   return {
     version: 2,
+    darkMode: false,
     riderWeightKg: '75',
     bikes: [bike],
     selectedBikeId: bike.id,
@@ -107,6 +108,7 @@ export function migrateFromV1(legacy: StoredAppStateV1): AppPersistence {
 
   return {
     version: 2,
+    darkMode: defaults.darkMode,
     riderWeightKg: legacy.riderWeightKg ?? defaults.riderWeightKg,
     bikes: [bike],
     selectedBikeId: bike.id,
@@ -240,6 +242,7 @@ export function normalizeAppPersistence(raw: unknown): AppPersistence {
 
   return {
     version: 2,
+    darkMode: typeof data.darkMode === 'boolean' ? data.darkMode : defaults.darkMode,
     riderWeightKg:
       typeof data.riderWeightKg === 'string' ? data.riderWeightKg : defaults.riderWeightKg,
     bikes,

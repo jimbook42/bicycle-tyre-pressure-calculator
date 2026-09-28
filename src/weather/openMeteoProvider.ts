@@ -2,6 +2,7 @@ import { FORECAST_CACHE_TTL_MS, OPEN_METEO_ATTRIBUTION } from '../data/weatherCo
 import { searchLocations } from './geocoding'
 import {
   currentAmbientFromHourly,
+  dominantWeatherCodeDuringRide,
   durationWeightedRideTemperatureC,
   forecastWetDuringRide,
   resolveRideWindow,
@@ -111,6 +112,7 @@ export async function buildProcessedRideWeather(
   const { minC, maxC } = temperatureRangeOverRideC(hourly, window)
   const currentAmbientTempC = currentAmbientFromHourly(hourly, timing.referenceNow)
   const isWetForecast = forecastWetDuringRide(hourly, window)
+  const dominantWeatherCode = dominantWeatherCodeDuringRide(hourly, window)
   return {
     available: true,
     locationLabel,
@@ -119,6 +121,7 @@ export async function buildProcessedRideWeather(
     windowTempMaxC: maxC,
     currentAmbientTempC,
     isWetForecast,
+    dominantWeatherCode,
     providerId: provider.id,
     attribution: OPEN_METEO_ATTRIBUTION,
     confidence: 'full',

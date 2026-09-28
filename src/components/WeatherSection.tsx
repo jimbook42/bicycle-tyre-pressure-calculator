@@ -3,10 +3,14 @@ import { formatPlaceLabel } from '../weather/geocoding'
 import type { WeatherPreviewModel } from '../weather/weatherPreview'
 import type { GeoPlace } from '../weather/weatherProvider'
 import type { WeatherSettingsStored } from '../types'
-
-function fieldClassName() {
-  return 'mt-1 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm'
-}
+import {
+  btnRaised,
+  cardInner,
+  fieldClassName,
+  mutedText,
+  sectionTitle,
+  warnBox,
+} from '../ui/softUi'
 
 interface WeatherSectionProps {
   weather: WeatherSettingsStored
@@ -39,10 +43,10 @@ export function WeatherSection({
     <details
       open={weather.weatherOpen}
       onToggle={(e) => onPatch({ weatherOpen: (e.target as HTMLDetailsElement).open })}
-      className="rounded border border-slate-200 p-3"
+      className={`${cardInner} p-3`}
     >
-      <summary className="cursor-pointer text-sm font-medium">
-        Advanced weather &amp; temperature (optional)
+      <summary className={`cursor-pointer text-sm font-medium ${sectionTitle}`}>
+        Weather &amp; temperature (optional)
       </summary>
       <div className="mt-3 space-y-3">
         <label className="flex items-center gap-2 text-sm">
@@ -79,26 +83,26 @@ export function WeatherSection({
               {weather.locationMode === 'search' && (
                 <div>
                   <input
-                    className={fieldClassName()}
+                    className={fieldClassName}
                     placeholder="City or place name"
                     value={weather.locationSearch}
                     onChange={(e) => onPatch({ locationSearch: e.target.value })}
                     aria-label="Search location"
                   />
                   {searchStatus === 'loading' && (
-                    <p className="mt-1 text-xs text-slate-500">Searching…</p>
+                    <p className={`mt-1 text-xs ${mutedText}`}>Searching…</p>
                   )}
-                  {searchError && <p className="mt-1 text-xs text-red-600">{searchError}</p>}
+                  {searchError && <p className="mt-1 text-xs text-[#a63d2a]">{searchError}</p>}
                   {searchStatus === 'empty' && (
-                    <p className="mt-1 text-xs text-slate-500">No matching places.</p>
+                    <p className={`mt-1 text-xs ${mutedText}`}>No matching places.</p>
                   )}
                   {suggestions.length > 0 && (
-                    <ul className="mt-1 overflow-hidden rounded border border-slate-200 bg-white">
+                    <ul className={`mt-2 overflow-hidden rounded-[12px] ${cardInner}`}>
                       {suggestions.map((place) => (
                         <li key={`${place.name}-${place.admin1 ?? ''}-${place.country ?? ''}`}>
                           <button
                             type="button"
-                            className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
+                            className="block w-full px-3 py-2 text-left text-sm hover:brightness-105"
                             onClick={() => onSelectPlace(place)}
                           >
                             {formatPlaceLabel(place)}
@@ -111,31 +115,27 @@ export function WeatherSection({
               )}
               {weather.locationMode === 'device' && (
                 <div className="mt-2 space-y-1">
-                  <button
-                    type="button"
-                    className="rounded border border-slate-300 px-3 py-1.5 text-sm"
-                    onClick={onUseMyLocation}
-                  >
+                  <button type="button" className={btnRaised} onClick={onUseMyLocation}>
                     Detect location
                   </button>
                   {deviceCoords && (
-                    <p className="text-xs text-slate-600">Using: {deviceCoords.label}</p>
+                    <p className={`text-xs ${mutedText}`}>Using: {deviceCoords.label}</p>
                   )}
-                  {deviceError && <p className="text-xs text-red-600">{deviceError}</p>}
-                  <p className="text-xs text-slate-500">
+                  {deviceError && <p className="text-xs text-[#a63d2a]">{deviceError}</p>}
+                  <p className={`text-xs ${mutedText}`}>
                     Coordinates are not saved — only used for this session.
                   </p>
                 </div>
               )}
               {weather.locationLabel && weather.locationMode === 'search' && (
-                <p className="mt-1 text-xs text-slate-500">Last used: {weather.locationLabel}</p>
+                <p className={`mt-1 text-xs ${mutedText}`}>Last used: {weather.locationLabel}</p>
               )}
             </fieldset>
 
             <label className="block text-sm">
               Ride timing
               <select
-                className={fieldClassName()}
+                className={fieldClassName}
                 value={weather.timingMode}
                 onChange={(e) =>
                   onPatch({
@@ -159,7 +159,7 @@ export function WeatherSection({
                     Date
                     <input
                       type="date"
-                      className={fieldClassName()}
+                      className={fieldClassName}
                       value={weather.rideDate}
                       onChange={(e) => onPatch({ rideDate: e.target.value })}
                     />
@@ -169,7 +169,7 @@ export function WeatherSection({
                   Start time
                   <input
                     type="time"
-                    className={fieldClassName()}
+                    className={fieldClassName}
                     value={weather.startTime}
                     onChange={(e) => onPatch({ startTime: e.target.value })}
                   />
@@ -180,7 +180,7 @@ export function WeatherSection({
             <label className="block text-sm">
               Duration
               <select
-                className={fieldClassName()}
+                className={fieldClassName}
                 value={weather.durationPreset}
                 onChange={(e) => onPatch({ durationPreset: e.target.value })}
               >
@@ -197,7 +197,7 @@ export function WeatherSection({
               <label className="block text-sm">
                 Custom duration (minutes)
                 <input
-                  className={fieldClassName()}
+                  className={fieldClassName}
                   inputMode="numeric"
                   value={weather.durationCustomMinutes}
                   onChange={(e) => onPatch({ durationCustomMinutes: e.target.value })}
@@ -227,7 +227,7 @@ export function WeatherSection({
                 <label className="mt-2 block">
                   Temperature (°C)
                   <input
-                    className={fieldClassName()}
+                    className={fieldClassName}
                     inputMode="decimal"
                     value={weather.inflationManualC}
                     onChange={(e) => onPatch({ inflationManualC: e.target.value })}
@@ -239,7 +239,7 @@ export function WeatherSection({
             <label className="block text-sm">
               Wet conditions
               <select
-                className={fieldClassName()}
+                className={fieldClassName}
                 value={weather.wetMode}
                 onChange={(e) =>
                   onPatch({ wetMode: e.target.value as WeatherSettingsStored['wetMode'] })
@@ -251,24 +251,34 @@ export function WeatherSection({
               </select>
             </label>
 
-            <p className="text-xs text-slate-500">
+            <p className={`text-xs ${mutedText}`}>
               Weather data by Open-Meteo.com. Non-commercial use is supported without an API key;
               commercial use may need separate licensing.
             </p>
 
             {(previewLoading || preview) && (
-              <div className="rounded border border-slate-200 bg-slate-50 p-3 text-sm">
-                <p className="font-medium">{preview?.locationLabel || weather.locationLabel}</p>
-                <p className="text-slate-600">{preview?.plan}</p>
-                {previewLoading && <p className="mt-1 text-slate-500">Loading forecast…</p>}
+              <div className={`p-3 text-sm ${cardInner}`}>
+                <div className="flex items-start gap-3">
+                  <span
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-[#fdfaf3] text-xl shadow-[8px_8px_16px_rgba(0,0,0,0.08),_-8px_-8px_16px_rgba(255,255,255,0.7)] dark:bg-[#1e1e20] dark:shadow-[8px_8px_16px_rgba(0,0,0,0.5),_-8px_-8px_16px_rgba(255,255,255,0.05)]"
+                    aria-hidden
+                  >
+                    {preview?.weatherIcon ?? '🌡️'}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{preview?.locationLabel || weather.locationLabel}</p>
+                    <p className={mutedText}>{preview?.plan}</p>
+                  </div>
+                </div>
+                {previewLoading && <p className={`mt-2 ${mutedText}`}>Loading forecast…</p>}
                 {preview?.unavailable && !previewLoading && (
-                  <p className="mt-1 text-amber-800">
+                  <p className={`mt-2 ${warnBox}`}>
                     Weather unavailable — using standard pressure calculation.
                   </p>
                 )}
                 {preview && !preview.unavailable && !previewLoading && (
-                  <div className="mt-1 space-y-0.5">
-                    <p>Expected ride weather</p>
+                  <div className={`mt-2 space-y-0.5 ${mutedText}`}>
+                    <p className="font-medium text-[#2b2825] dark:text-[#e8e6e1]">Expected ride weather</p>
                     <p>{preview.temperatureLine}</p>
                     <p>{preview.rainLine}</p>
                     <p>{preview.wetLine}</p>

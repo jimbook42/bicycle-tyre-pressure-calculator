@@ -46,6 +46,7 @@ describe('WeatherSection location suggestions', () => {
           preview: {
             locationLabel: 'Christchurch, Canterbury, New Zealand',
             plan: 'Now • 1 hour',
+            weatherIcon: '🌧️',
             temperatureLine: 'Now 14°C • 12–14°C',
             rainLine: 'Rain possible',
             wetLine: 'Wet adjustment: Applied',

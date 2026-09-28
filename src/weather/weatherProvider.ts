@@ -38,6 +38,8 @@ export interface ProcessedRideWeather {
   rideTempC: number
   currentAmbientTempC?: number
   isWetForecast: boolean
+  /** Dominant WMO weather code during the ride window (for display). */
+  dominantWeatherCode?: number
   /** Lowest and highest ambient samples inside the ride window. */
   windowTempMinC?: number
   windowTempMaxC?: number

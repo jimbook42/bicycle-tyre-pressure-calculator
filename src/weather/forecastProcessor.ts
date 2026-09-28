@@ -128,6 +128,32 @@ export function temperatureRangeOverRideC(
   return { minC, maxC }
 }
 
+/** Duration-weighted dominant WMO weather code over the ride window. */
+export function dominantWeatherCodeDuringRide(
+  hourly: HourlyForecastPoint[],
+  window: RideWindow,
+): number {
+  const sliceMs = 15 * 60_000
+  const weights = new Map<number, number>()
+  for (let t = window.start.getTime(); t < window.end.getTime(); t += sliceMs) {
+    const sliceEnd = Math.min(window.end.getTime(), t + sliceMs)
+    const mid = new Date((t + sliceEnd) / 2)
+    const sample = interpolateAt(hourly, mid)
+    const weight = sliceEnd - t
+    weights.set(sample.weatherCode, (weights.get(sample.weatherCode) ?? 0) + weight)
+  }
+  let bestCode = 0
+  let bestWeight = -1
+  for (const [code, w] of weights) {
+    if (w > bestWeight) {
+      bestWeight = w
+      bestCode = code
+    }
+  }
+  if (bestWeight >= 0) return bestCode
+  return interpolateAt(hourly, window.start).weatherCode
+}
+
 export function forecastWetDuringRide(
   hourly: HourlyForecastPoint[],
   window: RideWindow,

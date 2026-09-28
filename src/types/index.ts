@@ -150,6 +150,8 @@ export interface WeatherSettingsStored {
 
 export interface AppPersistence {
   version: 2
+  /** When true, `html` gets class `dark` for Soft UI dark theme. */
+  darkMode: boolean
   riderWeightKg: string
   bikes: BikeProfile[]
   selectedBikeId: string

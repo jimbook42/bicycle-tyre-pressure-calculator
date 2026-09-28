@@ -78,17 +78,8 @@ export interface PressureResult {
   inputsUsed: string[]
 }
 
-export interface StoredAppState {
-  riderWeightKg: string
-  bikeWeightKg: string
-  rideType: RideType
-  gravelPercent: string
-  packWeightKg: string
-  frontWidthMm: string
-  rearWidthMm: string
-  tubeType: TubeType
-  pressureUnit: PressureUnit
-  advancedOpen: boolean
+/** Optional advanced fields stored as strings in the UI / persistence layer. */
+export interface BikeAdvancedStored {
   frontMeasuredWidthMm: string
   rearMeasuredWidthMm: string
   rimInternalWidthMm: string
@@ -99,4 +90,50 @@ export interface StoredAppState {
   rearMinPsi: string
   rearMaxPsi: string
   frontLoadPercent: string
+}
+
+export interface BikeProfile {
+  id: string
+  name: string
+  weightKg: string
+  frontWidthMm: string
+  rearWidthMm: string
+  tubeType: TubeType
+  advanced: BikeAdvancedStored
+}
+
+export interface AppPersistence {
+  version: 2
+  riderWeightKg: string
+  bikes: BikeProfile[]
+  selectedBikeId: string
+  rideType: RideType
+  gravelPercent: string
+  packWeightKg: string
+  pressureUnit: PressureUnit
+  advancedOpen: boolean
+}
+
+/** Legacy flat storage (v1) — migrated on load. */
+export interface StoredAppStateV1 {
+  riderWeightKg?: string
+  bikeWeightKg?: string
+  rideType?: RideType
+  gravelPercent?: string
+  packWeightKg?: string
+  frontWidthMm?: string
+  rearWidthMm?: string
+  tubeType?: TubeType
+  pressureUnit?: PressureUnit
+  advancedOpen?: boolean
+  frontMeasuredWidthMm?: string
+  rearMeasuredWidthMm?: string
+  rimInternalWidthMm?: string
+  rimType?: RimType | ''
+  wheelDiameterInches?: string
+  frontMinPsi?: string
+  frontMaxPsi?: string
+  rearMinPsi?: string
+  rearMaxPsi?: string
+  frontLoadPercent?: string
 }

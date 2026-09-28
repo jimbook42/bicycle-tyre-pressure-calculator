@@ -141,7 +141,7 @@ export function CalculateTab({
                 }`}
                 onClick={() => onRideType(opt.value)}
               >
-                <RideTypeIcon type={opt.value} className="h-5 w-5" />
+                <RideTypeIcon type={opt.value} className="h-6 w-6 opacity-90" />
                 <span>{opt.label}</span>
               </button>
             ))}

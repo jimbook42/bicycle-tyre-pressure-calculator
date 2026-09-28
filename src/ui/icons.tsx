@@ -6,10 +6,12 @@ const stroke = 'currentColor'
 const common = {
   fill: 'none',
   stroke,
-  strokeWidth: 1.5,
+  strokeWidth: 1.6,
   strokeLinecap: 'round' as const,
   strokeLinejoin: 'round' as const,
 }
+
+const dot = { fill: 'currentColor', stroke: 'none' as const }
 
 function Svg({
   className = 'h-5 w-5',
@@ -55,17 +57,18 @@ export function IconPin({ className = 'h-3.5 w-3.5' }: { className?: string }) {
   )
 }
 
-/** Side-view road bike for bike tiles. */
+/** Road-racing bike — drop bars, slim wheels (side view). */
 export function IconBike({ className = 'h-7 w-7' }: { className?: string }) {
   return (
     <Svg className={className}>
-      <circle cx="6" cy="17" r="2.75" {...common} />
-      <circle cx="18" cy="17" r="2.75" {...common} />
-      <path
-        {...common}
-        d="M6 17 10 9h2l1.5 3h3.5L18 17M10 9l2.5 4M12.5 12.5h4.5l-1 2.5"
-      />
-      <path {...common} d="M10 9 12 6h3l1 3" />
+      <circle cx="5.5" cy="16.5" r="2.35" {...common} />
+      <circle cx="18.5" cy="16.5" r="2.35" {...common} />
+      <path {...common} d="M5.5 16.5 8.8 9.8 13.8 10.6 18.5 16.5" />
+      <path {...common} d="M8.8 9.8 9.6 7.6" />
+      <path {...common} d="M13.8 10.6 14.4 8.4" />
+      <path {...common} d="M10.8 7.8 12.2 6.6 14.8 7.4" />
+      <path {...common} d="M14.4 8.4 14.8 7.4" />
+      <circle cx="5.5" cy="16.5" r="0.55" {...dot} />
     </Svg>
   )
 }
@@ -87,47 +90,83 @@ export function IconInfo({ className = 'h-3.5 w-3.5' }: { className?: string }) 
   )
 }
 
+function IconRoadSurface({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <path {...common} d="M5 7.5 9.5 19.5h5L19 7.5" />
+      <path
+        {...common}
+        strokeDasharray="2.5 2.5"
+        d="M12 9v9.5"
+      />
+    </Svg>
+  )
+}
+
+function IconGravelSurface({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <path
+        {...common}
+        d="M3 14.5c2.2-2.8 3.8-.8 5.5-2.2 1.4-1.2 2.6-2.6 4.5-1.2 1.6 1.2 3.2.4 4.5-1.8 1-1.6 2.2-2.2 3.5-1.5"
+      />
+      <circle cx="6.5" cy="12.8" r="0.65" {...dot} />
+      <circle cx="10" cy="14.8" r="0.55" {...dot} />
+      <circle cx="13.5" cy="12.2" r="0.6" {...dot} />
+      <circle cx="16.8" cy="14.5" r="0.5" {...dot} />
+      <circle cx="19.2" cy="12.8" r="0.55" {...dot} />
+    </Svg>
+  )
+}
+
+function IconCommuteBuilding({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <path {...common} d="M5 20V9h14v11" />
+      <path {...common} d="M9 20v-4h6v4" />
+      <path {...common} d="M8 6h8v3H8z" />
+      <rect x="7.5" y="11" width="2.2" height="2.2" rx="0.3" {...common} />
+      <rect x="11" y="11" width="2.2" height="2.2" rx="0.3" {...common} />
+      <rect x="14.5" y="11" width="2.2" height="2.2" rx="0.3" {...common} />
+      <rect x="7.5" y="14.5" width="2.2" height="2.2" rx="0.3" {...common} />
+      <rect x="11" y="14.5" width="2.2" height="2.2" rx="0.3" {...common} />
+      <rect x="14.5" y="14.5" width="2.2" height="2.2" rx="0.3" {...common} />
+    </Svg>
+  )
+}
+
+function IconMixedSurface({ className }: { className?: string }) {
+  return (
+    <Svg className={className}>
+      <path {...common} d="M3 16.5h9" />
+      <path {...common} strokeDasharray="2 2" d="M7.5 14.8v3.4" />
+      <path
+        {...common}
+        d="M12 16.5c1.2-1.6 2.2-.6 3.2-1.8.9-1 2-1.4 3.3-.5 1 .7 1.8.2 2.5-1.2"
+      />
+      <circle cx="15" cy="14.2" r="0.45" {...dot} />
+      <circle cx="17.8" cy="15.8" r="0.4" {...dot} />
+      <circle cx="20" cy="14.5" r="0.45" {...dot} />
+    </Svg>
+  )
+}
+
 export function RideTypeIcon({
   type,
-  className = 'h-5 w-5',
+  className = 'h-6 w-6',
 }: {
   type: RideType
   className?: string
 }) {
   switch (type) {
     case 'road':
-      return (
-        <Svg className={className}>
-          <path {...common} d="M3 18h18" />
-          <circle cx="7" cy="18" r="2" {...common} />
-          <circle cx="17" cy="18" r="2" {...common} />
-          <path {...common} d="M7 18 11 8h2l1 4h3l2 6M11 8l1-2h4l1 2" />
-        </Svg>
-      )
+      return <IconRoadSurface className={className} />
     case 'gravel':
-      return (
-        <Svg className={className}>
-          <path {...common} d="M4 17h16M6 17l2-5 2.5 2 2-4 2.5 2 2-5 3 10" />
-          <path {...common} d="M8 15h.01M13 13h.01M16 16h.01" />
-        </Svg>
-      )
+      return <IconGravelSurface className={className} />
     case 'commute':
-      return (
-        <Svg className={className}>
-          <circle cx="7" cy="17" r="2" {...common} />
-          <circle cx="17" cy="17" r="2" {...common} />
-          <path {...common} d="M7 17 10 10h3l1 3h3l3 4M10 10V7h4v3" />
-          <path {...common} d="M14 7h2v4h-3" />
-        </Svg>
-      )
+      return <IconCommuteBuilding className={className} />
     case 'mixed':
-      return (
-        <Svg className={className}>
-          <path {...common} d="M3 18h8M11 18l2-6 5 6M5 18l2-5" />
-          <path {...common} d="M14 8h7M17 6v4" />
-          <path {...common} d="M16 12h.01M19 11h.01" />
-        </Svg>
-      )
+      return <IconMixedSurface className={className} />
     default:
       return null
   }

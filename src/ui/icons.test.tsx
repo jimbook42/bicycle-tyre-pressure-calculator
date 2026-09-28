@@ -1,0 +1,44 @@
+/** @vitest-environment jsdom */
+import { createElement } from 'react'
+import { createRoot, type Root } from 'react-dom/client'
+import { act } from 'react'
+import { afterEach, describe, expect, it } from 'vitest'
+import { BIKE_ICON_SIZE, IconBike, RIDE_TYPE_ICON_SIZE, RideTypeIcon, rasterIconClass } from './icons'
+
+describe('raster icons', () => {
+  let root: Root | null = null
+  let host: HTMLDivElement | null = null
+
+  afterEach(() => {
+    act(() => root?.unmount())
+    host?.remove()
+    root = null
+    host = null
+  })
+
+  function renderIcon(el: ReturnType<typeof createElement>) {
+    host = document.createElement('div')
+    document.body.appendChild(host)
+    root = createRoot(host)
+    act(() => {
+      root?.render(el)
+    })
+  }
+
+  it('renders ride-type artwork with theme-aware monochrome filters', () => {
+    renderIcon(createElement(RideTypeIcon, { type: 'road' }))
+    const img = host!.querySelector('img')
+    expect(img?.getAttribute('src')).toBe('/icons/ride-road.png')
+    expect(img?.className).toContain('brightness-0')
+    expect(img?.className).toContain('dark:invert')
+    expect(img?.className).toContain(RIDE_TYPE_ICON_SIZE)
+  })
+
+  it('renders bike tile artwork at the larger bike size', () => {
+    renderIcon(createElement(IconBike, {}))
+    const img = host!.querySelector('img')
+    expect(img?.getAttribute('src')).toBe('/icons/bike-road.png')
+    expect(img?.className).toContain(rasterIconClass.split(' ')[0])
+    expect(img?.className).toContain(BIKE_ICON_SIZE)
+  })
+})

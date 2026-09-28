@@ -1,7 +1,7 @@
 import { formatWeightFromKg } from '../calculator/displayUnits'
 import { parseNum } from '../calculator/buildInput'
 import type { AppPersistence, BikeProfile, RideType, WeightDisplayUnit } from '../types'
-import { RideTypeIcon } from '../ui/icons'
+import { RIDE_TYPE_ICON_SIZE, RideTypeIcon } from '../ui/icons'
 import { WeatherSection } from './WeatherSection'
 import type { SessionCoordinates } from '../weather/rideWeatherService'
 import type { WeatherPreviewModel } from '../weather/weatherPreview'
@@ -141,7 +141,7 @@ export function CalculateTab({
                 }`}
                 onClick={() => onRideType(opt.value)}
               >
-                <RideTypeIcon type={opt.value} className="h-7 w-7" />
+                <RideTypeIcon type={opt.value} className={RIDE_TYPE_ICON_SIZE} />
                 <span>{opt.label}</span>
               </button>
             ))}

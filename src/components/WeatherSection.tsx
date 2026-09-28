@@ -61,10 +61,10 @@ export function WeatherSection({
 
       <fieldset className="text-sm">
         <legend className="font-medium">Location</legend>
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
           <button
             type="button"
-            className={weather.locationMode === 'device' ? pillActive : pillIdle}
+            className={`w-full px-3 py-2.5 text-sm ${weather.locationMode === 'device' ? pillActive : pillIdle}`}
             onClick={() => {
               onPatch({ locationMode: 'device' })
               onUseMyLocation()
@@ -74,10 +74,10 @@ export function WeatherSection({
           </button>
           <button
             type="button"
-            className={weather.locationMode === 'search' ? pillActive : pillIdle}
+            className={`w-full px-3 py-2.5 text-sm ${weather.locationMode === 'search' ? pillActive : pillIdle}`}
             onClick={() => onPatch({ locationMode: 'search' })}
           >
-            Search
+            Search for a place
           </button>
         </div>
         {weather.locationMode === 'search' && (

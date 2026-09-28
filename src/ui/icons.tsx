@@ -18,6 +18,13 @@ const RIDE_TYPE_ICON_SRC: Record<RideType, string> = {
   mixed: '/icons/ride-mixed.png',
 }
 
+/** Monochrome PNG artwork: black on light UI, white on dark UI. */
+export const rasterIconClass =
+  'shrink-0 object-contain brightness-0 opacity-[0.92] dark:brightness-0 dark:invert'
+
+export const RIDE_TYPE_ICON_SIZE = 'h-7 w-7'
+export const BIKE_ICON_SIZE = 'h-8 w-8'
+
 function Svg({
   className = 'h-5 w-5',
   children,
@@ -63,12 +70,12 @@ export function IconPin({ className = 'h-3.5 w-3.5' }: { className?: string }) {
 }
 
 /** Brand road-bike artwork (light strokes; inverted on light theme). */
-export function IconBike({ className = 'h-8 w-8' }: { className?: string }) {
+export function IconBike({ className = BIKE_ICON_SIZE }: { className?: string }) {
   return (
     <img
       src="/icons/bike-road.png"
       alt=""
-      className={`shrink-0 object-contain invert dark:invert-0 ${className}`}
+      className={`${rasterIconClass} ${className}`}
       width={32}
       height={32}
       decoding="async"
@@ -96,7 +103,7 @@ export function IconInfo({ className = 'h-3.5 w-3.5' }: { className?: string }) 
 
 export function RideTypeIcon({
   type,
-  className = 'h-7 w-7',
+  className = RIDE_TYPE_ICON_SIZE,
 }: {
   type: RideType
   className?: string
@@ -107,7 +114,7 @@ export function RideTypeIcon({
     <img
       src={src}
       alt=""
-      className={`shrink-0 object-contain invert dark:invert-0 ${className}`}
+      className={`${rasterIconClass} ${className}`}
       width={28}
       height={28}
       decoding="async"

@@ -102,6 +102,29 @@ export interface BikeProfile {
   advanced: BikeAdvancedStored
 }
 
+export type RideFeel = 'too_hard' | 'good' | 'too_soft'
+
+/** One saved ride note. Personal evidence only — does not replace the baseline model. */
+export interface RideFeedback {
+  id: string
+  createdAt: string
+  bikeId: string
+  bikeName: string
+  setupKey: string
+  rideType: RideType
+  gravelPercent: number
+  systemWeightKg: number
+  tubeType: TubeType
+  frontWidthMm: number
+  rearWidthMm: number
+  baselineFrontKpa: number
+  baselineRearKpa: number
+  actualFrontKpa: number
+  actualRearKpa: number
+  result: RideFeel
+  notes: string
+}
+
 export interface AppPersistence {
   version: 2
   riderWeightKg: string
@@ -112,6 +135,9 @@ export interface AppPersistence {
   packWeightKg: string
   pressureUnit: PressureUnit
   advancedOpen: boolean
+  /** When false, show the scientific baseline and ignore saved ride notes. */
+  applyPersonalisation: boolean
+  feedback: RideFeedback[]
 }
 
 /** Legacy flat storage (v1) — migrated on load. */

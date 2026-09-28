@@ -1,10 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
-import { buildCalculatorInput } from './calculator/buildInput'
+import { buildCalculatorInput, parseNum } from './calculator/buildInput'
+import {
+  personalisePressure,
+  resetPersonalisation,
+  setupEvidenceKey,
+  type PersonalisationAdjustment,
+} from './calculator/personalisation'
 import { calculatePressure } from './calculator/pressureEngine'
-import { formatPressure, unitLabel } from './calculator/units'
+import { displayToKpa, formatPressure, unitLabel } from './calculator/units'
 import { validateForCalculation } from './calculator/validation'
 import {
   addBike,
+  createId,
   deleteBike,
   getSelectedBike,
   loadAppPersistence,
@@ -17,6 +24,7 @@ import type {
   BikeProfile,
   PressureResult,
   PressureUnit,
+  RideFeel,
   RideType,
   TubeType,
 } from './types'
@@ -25,16 +33,18 @@ function fieldClassName() {
   return 'mt-1 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm'
 }
 
-function parseNum(value: string, fallback = 0): number {
-  const n = Number.parseFloat(value)
-  return Number.isFinite(n) ? n : fallback
-}
-
 export default function App() {
   const [state, setState] = useState<AppPersistence>(() => loadAppPersistence())
   const [result, setResult] = useState<PressureResult | null>(null)
+  const [adjustment, setAdjustment] = useState<PersonalisationAdjustment | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [actualFront, setActualFront] = useState('')
+  const [actualRear, setActualRear] = useState('')
+  const [rideFeel, setRideFeel] = useState<RideFeel>('good')
+  const [rideNote, setRideNote] = useState('')
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null)
 
   const selectedBike = useMemo(() => getSelectedBike(state), [state])
 
@@ -79,7 +89,73 @@ export default function App() {
       return
     }
     setError(null)
-    setResult(calculatePressure(validation.input))
+    setFeedbackMessage(null)
+    const baseline = calculatePressure(validation.input)
+    const key = evidenceKeyFor(state, bike, baseline.systemWeightKg)
+    const personal = personalisePressure(baseline, state.feedback, key)
+    setResult(baseline)
+    setAdjustment(personal)
+    const shownFront = state.applyPersonalisation ? personal.front.personalisedKpa : baseline.front.clampedKpa
+    const shownRear = state.applyPersonalisation ? personal.rear.personalisedKpa : baseline.rear.clampedKpa
+    setActualFront(formatPressure(shownFront, state.pressureUnit))
+    setActualRear(formatPressure(shownRear, state.pressureUnit))
+    setRideFeel('good')
+    setRideNote('')
+  }
+
+  function evidenceKeyFor(
+    app: AppPersistence,
+    bike: BikeProfile,
+    systemKg: number,
+  ): string {
+    const input = buildCalculatorInput(app, bike)
+    return setupEvidenceKey({
+      bikeId: bike.id,
+      rideType: app.rideType,
+      gravelPercent: input?.ride.gravelPercent ?? 0,
+      frontWidthMm: parseNum(bike.frontWidthMm),
+      rearWidthMm: parseNum(bike.rearWidthMm),
+      frontMeasuredWidthMm: bike.advanced.frontMeasuredWidthMm.trim()
+        ? parseNum(bike.advanced.frontMeasuredWidthMm)
+        : undefined,
+      rearMeasuredWidthMm: bike.advanced.rearMeasuredWidthMm.trim()
+        ? parseNum(bike.advanced.rearMeasuredWidthMm)
+        : undefined,
+      tubeType: bike.tubeType,
+      systemWeightKg: systemKg,
+    })
+  }
+
+  function saveRideFeedback() {
+    if (!result) return
+    const front = parseNum(actualFront, Number.NaN)
+    const rear = parseNum(actualRear, Number.NaN)
+    if (!(front > 0) || !(rear > 0)) {
+      setFeedbackMessage('Enter the front and rear pressures you actually rode.')
+      return
+    }
+    const recordKey = evidenceKeyFor(state, selectedBike, result.systemWeightKg)
+    const record = {
+      id: createId(),
+      createdAt: new Date().toISOString(),
+      bikeId: selectedBike.id,
+      bikeName: selectedBike.name,
+      setupKey: recordKey,
+      rideType: state.rideType,
+      gravelPercent: parseNum(state.gravelPercent, 0),
+      systemWeightKg: result.systemWeightKg,
+      tubeType: selectedBike.tubeType,
+      frontWidthMm: parseNum(selectedBike.frontWidthMm),
+      rearWidthMm: parseNum(selectedBike.rearWidthMm),
+      baselineFrontKpa: result.front.clampedKpa,
+      baselineRearKpa: result.rear.clampedKpa,
+      actualFrontKpa: displayToKpa(front, state.pressureUnit),
+      actualRearKpa: displayToKpa(rear, state.pressureUnit),
+      result: rideFeel,
+      notes: rideNote.trim(),
+    }
+    setApp((prev) => ({ ...prev, feedback: [record, ...prev.feedback] }))
+    setFeedbackMessage('Ride note saved on this device.')
   }
 
   const canCalculate = buildCalculatorInput(state, selectedBike) !== null
@@ -391,6 +467,14 @@ export default function App() {
               <option value="kPa">kPa (whole)</option>
             </select>
           </label>
+          <label className="mt-3 flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={state.applyPersonalisation}
+              onChange={(e) => updateApp('applyPersonalisation', e.target.checked)}
+            />
+            Apply notes from previous rides
+          </label>
         </section>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
@@ -403,21 +487,34 @@ export default function App() {
         </button>
       </form>
 
-      {result && (
+      {result && adjustment && (
         <section className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
           <p className="text-sm font-medium text-emerald-900">Recommended starting pressure</p>
+          {state.applyPersonalisation && adjustment.active && (
+            <p className="mt-1 text-sm text-emerald-900">{adjustment.summary}</p>
+          )}
           <div className="mt-3 grid grid-cols-2 gap-4 text-center">
             <div>
               <p className="text-xs uppercase tracking-wide text-emerald-800">Front</p>
               <p className="text-3xl font-semibold tabular-nums text-emerald-950">
-                {formatPressure(result.front.clampedKpa, unit)}{' '}
+                {formatPressure(
+                  state.applyPersonalisation
+                    ? adjustment.front.personalisedKpa
+                    : result.front.clampedKpa,
+                  unit,
+                )}{' '}
                 <span className="text-lg">{unitLabel(unit)}</span>
               </p>
             </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-emerald-800">Rear</p>
               <p className="text-3xl font-semibold tabular-nums text-emerald-950">
-                {formatPressure(result.rear.clampedKpa, unit)}{' '}
+                {formatPressure(
+                  state.applyPersonalisation
+                    ? adjustment.rear.personalisedKpa
+                    : result.rear.clampedKpa,
+                  unit,
+                )}{' '}
                 <span className="text-lg">{unitLabel(unit)}</span>
               </p>
             </div>
@@ -443,6 +540,11 @@ export default function App() {
             <div className="mt-3 space-y-2 border-t border-emerald-200 pt-3 text-sm text-emerald-950">
               <p>
                 <strong>Bike:</strong> {selectedBike.name}
+              </p>
+              <p>
+                <strong>Baseline:</strong> front {formatPressure(result.front.clampedKpa, unit)}{' '}
+                {unitLabel(unit)}, rear {formatPressure(result.rear.clampedKpa, unit)}{' '}
+                {unitLabel(unit)}
               </p>
               <p>
                 <strong>System weight:</strong> {result.systemWeightKg.toFixed(1)} kg
@@ -492,10 +594,125 @@ export default function App() {
                   {note}
                 </p>
               ))}
+              <p className="text-emerald-900">
+                Ride notes are personal evidence stored on this device. They do not change the
+                baseline model.
+              </p>
+              {state.applyPersonalisation && (
+                <button
+                  type="button"
+                  className="text-sm font-medium text-emerald-900 underline"
+                  onClick={() => {
+                    const key = evidenceKeyFor(state, selectedBike, result.systemWeightKg)
+                    setApp((prev) => ({
+                      ...prev,
+                      feedback: resetPersonalisation(prev.feedback, key),
+                    }))
+                    setAdjustment(
+                      personalisePressure(
+                        result,
+                        resetPersonalisation(state.feedback, key),
+                        key,
+                      ),
+                    )
+                    setFeedbackMessage('Personalisation reset for this setup.')
+                  }}
+                >
+                  Reset personalisation for this setup
+                </button>
+              )}
             </div>
           )}
+
+          <div className="mt-4 space-y-3 border-t border-emerald-200 pt-3">
+            <p className="text-sm font-medium text-emerald-950">After the ride</p>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-sm">
+                Actual front ({unitLabel(unit)})
+                <input
+                  className={fieldClassName()}
+                  inputMode="decimal"
+                  value={actualFront}
+                  onChange={(e) => setActualFront(e.target.value)}
+                />
+              </label>
+              <label className="text-sm">
+                Actual rear ({unitLabel(unit)})
+                <input
+                  className={fieldClassName()}
+                  inputMode="decimal"
+                  value={actualRear}
+                  onChange={(e) => setActualRear(e.target.value)}
+                />
+              </label>
+            </div>
+            <label className="block text-sm">
+              How did it feel?
+              <select
+                className={fieldClassName()}
+                value={rideFeel}
+                onChange={(e) => setRideFeel(e.target.value as RideFeel)}
+              >
+                <option value="too_hard">Too hard</option>
+                <option value="good">Good</option>
+                <option value="too_soft">Too soft</option>
+              </select>
+            </label>
+            <label className="block text-sm">
+              Notes (optional)
+              <input
+                className={fieldClassName()}
+                value={rideNote}
+                onChange={(e) => setRideNote(e.target.value)}
+              />
+            </label>
+            {feedbackMessage && <p className="text-sm text-emerald-900">{feedbackMessage}</p>}
+            <button
+              type="button"
+              className="rounded border border-emerald-800 px-3 py-2 text-sm font-medium text-emerald-950"
+              onClick={saveRideFeedback}
+            >
+              Save ride note
+            </button>
+          </div>
         </section>
       )}
+
+      <section className="mt-6 rounded-lg border border-slate-200 bg-white p-4">
+        <button
+          type="button"
+          className="text-sm font-medium"
+          onClick={() => setHistoryOpen((open) => !open)}
+        >
+          {historyOpen ? 'Hide history' : `History (${state.feedback.length})`}
+        </button>
+        {historyOpen && (
+          <ul className="mt-3 space-y-3 text-sm">
+            {state.feedback.length === 0 && (
+              <li className="text-slate-500">No ride notes yet.</li>
+            )}
+            {state.feedback.slice(0, 20).map((entry) => (
+              <li key={entry.id} className="border-t border-slate-100 pt-2">
+                <p>
+                  {new Date(entry.createdAt).toLocaleString()} · {entry.bikeName} · {entry.rideType}
+                </p>
+                <p>
+                  Recommended {formatPressure(entry.baselineFrontKpa, unit)}/
+                  {formatPressure(entry.baselineRearKpa, unit)} {unitLabel(unit)} · rode{' '}
+                  {formatPressure(entry.actualFrontKpa, unit)}/
+                  {formatPressure(entry.actualRearKpa, unit)} ·{' '}
+                  {entry.result === 'too_hard'
+                    ? 'Too hard'
+                    : entry.result === 'too_soft'
+                      ? 'Too soft'
+                      : 'Good'}
+                </p>
+                {entry.notes && <p className="text-slate-600">{entry.notes}</p>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {!result && canCalculate && (
         <p className="mt-4 text-center text-sm text-slate-500">Press Calculate to see pressures.</p>

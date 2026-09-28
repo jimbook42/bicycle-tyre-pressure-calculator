@@ -13,6 +13,19 @@ export function kpaToBar(kpa: number): number {
   return kpa / KPA_PER_BAR
 }
 
+export function displayToKpa(value: number, unit: PressureUnit): number {
+  switch (unit) {
+    case 'psi':
+      return psiToKpa(value)
+    case 'bar':
+      return value * KPA_PER_BAR
+    case 'kPa':
+      return value
+    default:
+      return psiToKpa(value)
+  }
+}
+
 export function formatPressure(kpa: number, unit: PressureUnit): string {
   switch (unit) {
     case 'psi':

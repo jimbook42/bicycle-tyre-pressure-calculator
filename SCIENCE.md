@@ -59,3 +59,17 @@ If min/max are supplied (advanced), recommended pressures are **clamped** to tho
 ## Internal units
 
 Calculations use **kg**, **mm**, and **kPa** internally. Display converts to PSI (default), bar, or kPa.
+
+## Personal ride notes
+
+Saved feedback is **personal empirical evidence**. It is not a correction of the baseline model and it is not proof that the model is wrong. The app does not learn a perfect pressure.
+
+After the baseline is calculated, a separate layer may nudge the **starting** suggestion:
+
+- **Good** pulls toward the pressure the rider actually used (including when that differs from the recommendation).
+- **Too hard** is evidence for a lower pressure than what was ridden (a fixed 2 PSI step — a hint, not a measured comfort delta).
+- **Too soft** is evidence for a higher pressure by the same step.
+
+Offsets are averaged with newer rides weighted more (`RECENCY_DECAY`). The average is scaled by how many rides exist (`RIDES_FOR_FULL_WEIGHT` = 5) and by how much the notes agree. Opposing notes shrink the shift. The result is capped at 8 PSI from the baseline (`MAX_OFFSET_PSI`), then clamped to manufacturer limits. One ride can move the suggestion by at most one fifth of that cap.
+
+Evidence is kept apart by bike, ride type, tyre widths, tube type, and a coarse system-weight bucket. Resetting personalisation for a setup deletes only that setup’s notes. Constants live in `src/data/personalisationConstants.ts`.

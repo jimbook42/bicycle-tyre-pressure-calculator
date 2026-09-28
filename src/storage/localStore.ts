@@ -3,6 +3,8 @@ import type {
   BikeAdvancedStored,
   BikeProfile,
   PressureUnit,
+  RideFeedback,
+  RideFeel,
   StoredAppStateV1,
   TubeType,
 } from '../types'
@@ -55,6 +57,8 @@ export function defaultAppPersistence(): AppPersistence {
     packWeightKg: '0',
     pressureUnit: 'psi',
     advancedOpen: false,
+    applyPersonalisation: true,
+    feedback: [],
   }
 }
 
@@ -91,6 +95,8 @@ export function migrateFromV1(legacy: StoredAppStateV1): AppPersistence {
     packWeightKg: legacy.packWeightKg ?? defaults.packWeightKg,
     pressureUnit: (legacy.pressureUnit ?? defaults.pressureUnit) as PressureUnit,
     advancedOpen: legacy.advancedOpen ?? defaults.advancedOpen,
+    applyPersonalisation: true,
+    feedback: [],
   }
 }
 
@@ -111,6 +117,47 @@ function normalizeBike(raw: unknown, index: number): BikeProfile {
     tubeType: (b.tubeType ?? defaults.tubeType) as TubeType,
     advanced: adv,
   }
+}
+
+const RIDE_FEELS: RideFeel[] = ['too_hard', 'good', 'too_soft']
+
+function normalizeFeedback(raw: unknown): RideFeedback[] {
+  if (!Array.isArray(raw)) return []
+  const kept: RideFeedback[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const record = item as Partial<RideFeedback>
+    if (typeof record.id !== 'string' || typeof record.setupKey !== 'string') continue
+    if (!RIDE_FEELS.includes(record.result as RideFeel)) continue
+    if (
+      typeof record.baselineFrontKpa !== 'number' ||
+      typeof record.baselineRearKpa !== 'number' ||
+      typeof record.actualFrontKpa !== 'number' ||
+      typeof record.actualRearKpa !== 'number'
+    ) {
+      continue
+    }
+    kept.push({
+      id: record.id,
+      createdAt: typeof record.createdAt === 'string' ? record.createdAt : new Date(0).toISOString(),
+      bikeId: typeof record.bikeId === 'string' ? record.bikeId : '',
+      bikeName: typeof record.bikeName === 'string' ? record.bikeName : 'Bike',
+      setupKey: record.setupKey,
+      rideType: record.rideType ?? 'road',
+      gravelPercent: typeof record.gravelPercent === 'number' ? record.gravelPercent : 0,
+      systemWeightKg: typeof record.systemWeightKg === 'number' ? record.systemWeightKg : 0,
+      tubeType: (record.tubeType ?? 'tubeless') as TubeType,
+      frontWidthMm: typeof record.frontWidthMm === 'number' ? record.frontWidthMm : 0,
+      rearWidthMm: typeof record.rearWidthMm === 'number' ? record.rearWidthMm : 0,
+      baselineFrontKpa: record.baselineFrontKpa,
+      baselineRearKpa: record.baselineRearKpa,
+      actualFrontKpa: record.actualFrontKpa,
+      actualRearKpa: record.actualRearKpa,
+      result: record.result as RideFeel,
+      notes: typeof record.notes === 'string' ? record.notes : '',
+    })
+  }
+  return kept
 }
 
 /** Parse unknown JSON into a safe AppPersistence without throwing. */
@@ -147,6 +194,11 @@ export function normalizeAppPersistence(raw: unknown): AppPersistence {
     pressureUnit: (data.pressureUnit ?? defaults.pressureUnit) as PressureUnit,
     advancedOpen:
       typeof data.advancedOpen === 'boolean' ? data.advancedOpen : defaults.advancedOpen,
+    applyPersonalisation:
+      typeof data.applyPersonalisation === 'boolean'
+        ? data.applyPersonalisation
+        : defaults.applyPersonalisation,
+    feedback: normalizeFeedback(data.feedback),
   }
 }
 

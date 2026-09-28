@@ -107,6 +107,18 @@ describe('localStore', () => {
     expect(state.bikes).toHaveLength(1)
   })
 
+  it('defaults missing feedback fields without dropping bikes', () => {
+    const normalized = normalizeAppPersistence({
+      version: 2,
+      riderWeightKg: '70',
+      bikes: [{ id: 'keep-me', name: 'Road', weightKg: '8' }],
+      selectedBikeId: 'keep-me',
+    })
+    expect(normalized.bikes[0].id).toBe('keep-me')
+    expect(normalized.feedback).toEqual([])
+    expect(normalized.applyPersonalisation).toBe(true)
+  })
+
   it('round-trips persistence through save and load', () => {
     const state = defaultAppPersistence()
     state.riderWeightKg = '81'

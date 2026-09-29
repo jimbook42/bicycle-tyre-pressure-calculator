@@ -11,16 +11,16 @@ const common = {
   strokeLinejoin: 'round' as const,
 }
 
-/** Square ride-type artwork. Strokes stay about 1px so the drawings stay fine. */
+/** Square ride-type artwork, drawn from the source files at 4× so edges stay smooth. */
 export const RIDE_TYPE_ICON_SIZE = 'h-14 w-14'
 /** Bike artwork is wider than the ride icons. */
 export const BIKE_ICON_SIZE = 'h-[58px] w-[92px]'
 
 const RIDE_TYPE_ICON_SRC: Record<RideType, string> = {
-  road: '/icons/ride-road.png',
-  gravel: '/icons/ride-gravel.png',
-  commute: '/icons/ride-commute.png',
-  mixed: '/icons/ride-mixed.png',
+  road: '/icons/ride-road.png?v=3',
+  gravel: '/icons/ride-gravel.png?v=3',
+  commute: '/icons/ride-commute.png?v=3',
+  mixed: '/icons/ride-mixed.png?v=3',
 }
 
 function ArtworkIcon({ src, className }: { src: string; className: string }) {
@@ -89,7 +89,7 @@ export function IconPin({ className = 'h-3.5 w-3.5' }: { className?: string }) {
 
 /** Side-view road bike. Extra classes append; size stays applied. */
 export function IconBike({ className = '' }: { className?: string }) {
-  return <ArtworkIcon src="/icons/bike-road.png" className={`${BIKE_ICON_SIZE} ${className}`} />
+  return <ArtworkIcon src="/icons/bike-road.png?v=3" className={`${BIKE_ICON_SIZE} ${className}`} />
 }
 
 export function IconPlus({ className = 'h-6 w-6' }: { className?: string }) {

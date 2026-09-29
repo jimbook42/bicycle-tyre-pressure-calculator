@@ -15,13 +15,17 @@ const common = {
 export const RIDE_ICON_WIDTH = 72
 export const RIDE_ICON_HEIGHT = 32
 export const RIDE_TYPE_ICON_SIZE = 'h-[32px] w-[72px]'
+/** The road drawing is a tall winding lane, so it keeps that shape. */
+export const ROAD_ICON_WIDTH = 46
+export const ROAD_ICON_HEIGHT = 72
+export const ROAD_ICON_SIZE = 'h-[72px] w-[46px]'
 /** Bike slot. Wider than the ride icons, still downscaled from a larger file. */
 export const BIKE_ICON_WIDTH = 76
 export const BIKE_ICON_HEIGHT = 44
 export const BIKE_ICON_SIZE = 'h-[44px] w-[76px]'
 
 const RIDE_TYPE_ICON_SRC: Record<RideType, string> = {
-  road: '/icons/ride-road.png?v=5',
+  road: '/icons/ride-road.png?v=6',
   gravel: '/icons/ride-gravel.png?v=5',
   commute: '/icons/ride-commute.png?v=5',
   mixed: '/icons/ride-mixed.png?v=5',
@@ -127,19 +131,20 @@ export function IconInfo({ className = 'h-3.5 w-3.5' }: { className?: string }) 
 
 export function RideTypeIcon({
   type,
-  className = RIDE_TYPE_ICON_SIZE,
+  className = '',
 }: {
   type: RideType
   className?: string
 }) {
   const src = RIDE_TYPE_ICON_SRC[type]
   if (!src) return null
+  const road = type === 'road'
   return (
     <ArtworkIcon
       src={src}
-      width={RIDE_ICON_WIDTH}
-      height={RIDE_ICON_HEIGHT}
-      className={`${RIDE_TYPE_ICON_SIZE} ${className}`}
+      width={road ? ROAD_ICON_WIDTH : RIDE_ICON_WIDTH}
+      height={road ? ROAD_ICON_HEIGHT : RIDE_ICON_HEIGHT}
+      className={`${road ? ROAD_ICON_SIZE : RIDE_TYPE_ICON_SIZE} ${className}`}
     />
   )
 }

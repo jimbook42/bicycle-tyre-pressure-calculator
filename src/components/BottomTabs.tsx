@@ -1,4 +1,4 @@
-import { cardOuter, pillActive, pillIdle } from '../ui/softUi'
+import { cardOuter, mutedText, pillActive, pillIdle } from '../ui/softUi'
 
 export type AppTab = 'calculate' | 'bikes' | 'rider' | 'feedback'
 
@@ -17,19 +17,22 @@ const TABS: { id: AppTab; label: string }[] = [
 export function BottomTabs({ active, onChange }: BottomTabsProps) {
   return (
     <nav
-      className={`fixed bottom-0 left-0 right-0 z-20 mx-auto flex max-w-[480px] gap-1 px-2 pb-4 pt-2 ${cardOuter}`}
+      className={`fixed bottom-0 left-0 right-0 z-20 mx-auto flex max-w-[480px] flex-col gap-1.5 px-2 pb-2 pt-2 ${cardOuter}`}
       aria-label="Main"
     >
-      {TABS.map((tab) => (
-        <button
-          key={tab.id}
-          type="button"
-          className={`min-w-0 flex-1 truncate px-1 py-2 text-[11px] sm:text-xs ${active === tab.id ? pillActive : pillIdle}`}
-          onClick={() => onChange(tab.id)}
-        >
-          {tab.label}
-        </button>
-      ))}
+      <div className="flex gap-1">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            className={`min-w-0 flex-1 truncate px-1 py-2 text-[11px] sm:text-xs ${active === tab.id ? pillActive : pillIdle}`}
+            onClick={() => onChange(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      <p className={`text-center text-[10px] leading-none tracking-wide ${mutedText}`}>v1.0</p>
     </nav>
   )
 }

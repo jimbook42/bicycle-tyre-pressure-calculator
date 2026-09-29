@@ -11,6 +11,9 @@ import {
   RIDE_ICON_HEIGHT,
   RIDE_ICON_WIDTH,
   RIDE_TYPE_ICON_SIZE,
+  ROAD_ICON_HEIGHT,
+  ROAD_ICON_SIZE,
+  ROAD_ICON_WIDTH,
   RideTypeIcon,
 } from './icons'
 
@@ -34,17 +37,18 @@ describe('artwork icons', () => {
     })
   }
 
-  it('draws each ride-type icon at 72×32 and tints it from the image', () => {
+  it('draws each ride-type icon at its slot size and tints it from the image', () => {
     for (const type of ['road', 'gravel', 'commute', 'mixed'] as const) {
       renderIcon(createElement(RideTypeIcon, { type }))
       const el = host!.querySelector('img[aria-hidden]') as HTMLImageElement
+      const road = type === 'road'
       expect(el.className).toContain('artwork-icon')
       expect(el.className).toContain('object-contain')
-      expect(el.className).toContain(RIDE_TYPE_ICON_SIZE)
-      expect(el.width).toBe(RIDE_ICON_WIDTH)
-      expect(el.height).toBe(RIDE_ICON_HEIGHT)
-      expect(el.style.width).toBe(`${RIDE_ICON_WIDTH}px`)
-      expect(el.style.height).toBe(`${RIDE_ICON_HEIGHT}px`)
+      expect(el.className).toContain(road ? ROAD_ICON_SIZE : RIDE_TYPE_ICON_SIZE)
+      expect(el.width).toBe(road ? ROAD_ICON_WIDTH : RIDE_ICON_WIDTH)
+      expect(el.height).toBe(road ? ROAD_ICON_HEIGHT : RIDE_ICON_HEIGHT)
+      expect(el.style.width).toBe(`${road ? ROAD_ICON_WIDTH : RIDE_ICON_WIDTH}px`)
+      expect(el.style.height).toBe(`${road ? ROAD_ICON_HEIGHT : RIDE_ICON_HEIGHT}px`)
       expect(el.style.imageRendering).toBe('auto')
       expect(el.src).toContain(`/icons/ride-${type}.png`)
       act(() => root?.unmount())

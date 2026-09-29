@@ -11,34 +11,43 @@ const common = {
   strokeLinejoin: 'round' as const,
 }
 
-/** Square ride-type artwork, drawn from the source files at 4× so edges stay smooth. */
-export const RIDE_TYPE_ICON_SIZE = 'h-14 w-14'
-/** Bike artwork is wider than the ride icons. */
-export const BIKE_ICON_SIZE = 'h-[58px] w-[92px]'
+/** Ride-type slot. Artwork is stored larger than this so the browser downscales. */
+export const RIDE_ICON_WIDTH = 72
+export const RIDE_ICON_HEIGHT = 32
+export const RIDE_TYPE_ICON_SIZE = 'h-[32px] w-[72px]'
+/** Bike slot. Wider than the ride icons, still downscaled from a larger file. */
+export const BIKE_ICON_WIDTH = 76
+export const BIKE_ICON_HEIGHT = 44
+export const BIKE_ICON_SIZE = 'h-[44px] w-[76px]'
 
 const RIDE_TYPE_ICON_SRC: Record<RideType, string> = {
-  road: '/icons/ride-road.png?v=3',
-  gravel: '/icons/ride-gravel.png?v=3',
-  commute: '/icons/ride-commute.png?v=3',
-  mixed: '/icons/ride-mixed.png?v=3',
+  road: '/icons/ride-road.png?v=5',
+  gravel: '/icons/ride-gravel.png?v=5',
+  commute: '/icons/ride-commute.png?v=5',
+  mixed: '/icons/ride-mixed.png?v=5',
 }
 
-function ArtworkIcon({ src, className }: { src: string; className: string }) {
+function ArtworkIcon({
+  src,
+  width,
+  height,
+  className,
+}: {
+  src: string
+  width: number
+  height: number
+  className: string
+}) {
   return (
-    <span
+    <img
+      alt=""
       aria-hidden
-      className={`inline-block shrink-0 bg-current ${className}`}
-      style={{
-        maskImage: `url(${src})`,
-        WebkitMaskImage: `url(${src})`,
-        maskSize: '100% 100%',
-        WebkitMaskSize: '100% 100%',
-        maskRepeat: 'no-repeat',
-        WebkitMaskRepeat: 'no-repeat',
-        maskPosition: 'center',
-        WebkitMaskPosition: 'center',
-        maskMode: 'alpha',
-      }}
+      draggable={false}
+      width={width}
+      height={height}
+      src={src}
+      className={`artwork-icon block max-w-none shrink-0 object-contain ${className}`}
+      style={{ width, height, imageRendering: 'auto' }}
     />
   )
 }
@@ -89,7 +98,14 @@ export function IconPin({ className = 'h-3.5 w-3.5' }: { className?: string }) {
 
 /** Side-view road bike. Extra classes append; size stays applied. */
 export function IconBike({ className = '' }: { className?: string }) {
-  return <ArtworkIcon src="/icons/bike-road.png?v=3" className={`${BIKE_ICON_SIZE} ${className}`} />
+  return (
+    <ArtworkIcon
+      src="/icons/bike-road.png?v=5"
+      width={BIKE_ICON_WIDTH}
+      height={BIKE_ICON_HEIGHT}
+      className={`${BIKE_ICON_SIZE} ${className}`}
+    />
+  )
 }
 
 export function IconPlus({ className = 'h-6 w-6' }: { className?: string }) {
@@ -118,7 +134,14 @@ export function RideTypeIcon({
 }) {
   const src = RIDE_TYPE_ICON_SRC[type]
   if (!src) return null
-  return <ArtworkIcon src={src} className={className} />
+  return (
+    <ArtworkIcon
+      src={src}
+      width={RIDE_ICON_WIDTH}
+      height={RIDE_ICON_HEIGHT}
+      className={`${RIDE_TYPE_ICON_SIZE} ${className}`}
+    />
+  )
 }
 
 export function WeatherIcon({

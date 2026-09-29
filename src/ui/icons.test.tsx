@@ -3,7 +3,16 @@ import { createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { BIKE_ICON_SIZE, IconBike, RIDE_TYPE_ICON_SIZE, RideTypeIcon } from './icons'
+import {
+  BIKE_ICON_HEIGHT,
+  BIKE_ICON_SIZE,
+  BIKE_ICON_WIDTH,
+  IconBike,
+  RIDE_ICON_HEIGHT,
+  RIDE_ICON_WIDTH,
+  RIDE_TYPE_ICON_SIZE,
+  RideTypeIcon,
+} from './icons'
 
 describe('artwork icons', () => {
   let root: Root | null = null
@@ -25,23 +34,34 @@ describe('artwork icons', () => {
     })
   }
 
-  it('tints each ride-type drawing with the button text color', () => {
+  it('draws each ride-type icon at 72×32 and tints it from the image', () => {
     for (const type of ['road', 'gravel', 'commute', 'mixed'] as const) {
       renderIcon(createElement(RideTypeIcon, { type }))
-      const el = host!.querySelector('span[aria-hidden]') as HTMLElement
-      expect(el.className).toContain('bg-current')
+      const el = host!.querySelector('img[aria-hidden]') as HTMLImageElement
+      expect(el.className).toContain('artwork-icon')
+      expect(el.className).toContain('object-contain')
       expect(el.className).toContain(RIDE_TYPE_ICON_SIZE)
-      expect(el.style.maskImage).toContain(`/icons/ride-${type}.png`)
-      expect(el.style.maskMode).toBe('alpha')
+      expect(el.width).toBe(RIDE_ICON_WIDTH)
+      expect(el.height).toBe(RIDE_ICON_HEIGHT)
+      expect(el.style.width).toBe(`${RIDE_ICON_WIDTH}px`)
+      expect(el.style.height).toBe(`${RIDE_ICON_HEIGHT}px`)
+      expect(el.style.imageRendering).toBe('auto')
+      expect(el.src).toContain(`/icons/ride-${type}.png`)
       act(() => root?.unmount())
       host?.remove()
     }
   })
 
-  it('tints the wider bike drawing the same way', () => {
+  it('draws the bike icon at 76×44 the same way', () => {
     renderIcon(createElement(IconBike, {}))
-    const el = host!.querySelector('span[aria-hidden]') as HTMLElement
+    const el = host!.querySelector('img[aria-hidden]') as HTMLImageElement
+    expect(el.className).toContain('artwork-icon')
     expect(el.className).toContain(BIKE_ICON_SIZE)
-    expect(el.style.maskImage).toContain('/icons/bike-road.png')
+    expect(el.width).toBe(BIKE_ICON_WIDTH)
+    expect(el.height).toBe(BIKE_ICON_HEIGHT)
+    expect(el.style.width).toBe(`${BIKE_ICON_WIDTH}px`)
+    expect(el.style.height).toBe(`${BIKE_ICON_HEIGHT}px`)
+    expect(el.style.imageRendering).toBe('auto')
+    expect(el.src).toContain('/icons/bike-road.png')
   })
 })

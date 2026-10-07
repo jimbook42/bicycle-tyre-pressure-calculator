@@ -181,7 +181,7 @@ export function FeedbackTab({
               <li key={entry.id} className="border-t border-[#e8e2d8] pt-2 dark:border-[#333]">
                 <p className="truncate">
                   {new Date(entry.createdAt).toLocaleString()} · {entry.bikeName} ·{' '}
-                  {entry.rideType}
+                  {entry.rideType && rideTypeLabel(entry.rideType)}
                 </p>
                 <p className={`${mutedText} break-words`}>
                   Recommended {formatPressure(entry.baselineFrontKpa, unit)}/

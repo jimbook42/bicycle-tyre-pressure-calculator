@@ -20,9 +20,17 @@ export const BIKE_ICON_WIDTH = 76
 export const BIKE_ICON_HEIGHT = 44
 export const BIKE_ICON_SIZE = 'h-[44px] w-[76px]'
 
+const roadIcon = '/icons/ride-road.png?v=7'
+const gravelIcon = '/icons/ride-gravel.png?v=5'
+
 const RIDE_TYPE_ICON_SRC: Record<RideType, string> = {
-  road: '/icons/ride-road.png?v=7',
-  gravel: '/icons/ride-gravel.png?v=5',
+  road: roadIcon,
+  'road-smooth': roadIcon,
+  'road-rough': roadIcon,
+  gravel: gravelIcon,
+  'gravel-hardpack': gravelIcon,
+  'gravel-rough': gravelIcon,
+  'gravel-very-rough': gravelIcon,
   commute: '/icons/ride-commute.png?v=5',
   mixed: '/icons/ride-mixed.png?v=5',
 }

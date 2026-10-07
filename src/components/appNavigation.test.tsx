@@ -30,7 +30,7 @@ describe('app navigation', () => {
     expect(buttons).toContain('Rider')
     expect(buttons.some((t) => t?.startsWith('Feedback'))).toBe(true)
     expect(buttons).not.toContain('Settings')
-    expect(host.textContent).toContain('Version 2')
+    expect(host.textContent).toContain('Version 2.1')
   })
 
   it('exposes settings from the header cog', () => {

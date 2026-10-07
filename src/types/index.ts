@@ -4,7 +4,16 @@ export type WeightDisplayUnit = 'kg' | 'lb'
 
 export type TemperatureDisplayUnit = 'celsius' | 'fahrenheit'
 
-export type RideType = 'road' | 'gravel' | 'commute' | 'mixed'
+export type RideType =
+  | 'road'
+  | 'road-smooth'
+  | 'road-rough'
+  | 'gravel'
+  | 'gravel-hardpack'
+  | 'gravel-rough'
+  | 'gravel-very-rough'
+  | 'commute'
+  | 'mixed'
 
 export type TubeType = 'butyl' | 'tpu' | 'tubeless' | 'latex'
 
@@ -29,7 +38,9 @@ export interface Ride {
   /** 0–100; used when type is mixed */
   gravelPercent: number
   packWeightKg: number
-  /** Omitted speed uses the documented reference. km/h. */
+  /**
+   * Stored for context and older sessions. V2.1 does not change pressure with speed.
+   */
   expectedSpeedKmh?: number
   /** Dry when weather is unavailable and the rider has not forced wet. */
   moisture?: MoistureClass
@@ -72,7 +83,17 @@ export interface CalculatorInput {
 export type SurfaceModel = 'road' | 'gravel'
 
 export interface WheelPressureDetail {
+  /** Condition-adjusted pressure before the safety envelope. */
   targetKpa: number
+  /** Empirical Berto-chart baseline, before surface and wet adjustments. */
+  bertoBaselineKpa: number
+  surfaceFactor: number
+  wetFactor: number
+  /** True when measured mounted width was used instead of the labelled width. */
+  widthMeasured: boolean
+  /** True when this wheel’s width, load, or baseline pressure leaves the chart region. */
+  extrapolated: boolean
+  extrapolationReasons: string[]
   clampedKpa: number
   effectiveWidthMm: number
   wheelLoadKg: number
@@ -80,21 +101,9 @@ export interface WheelPressureDetail {
   manufacturerMaxKpa?: number
   clampedToMin: boolean
   clampedToMax: boolean
-  wheelLoadN?: number
-  deflectionFraction?: number
-  sectionHeightMm?: number
-  rimInternalWidthMm?: number
-  rimInternalAssumed?: boolean
-  beadSeatDiameterMm?: number
-  wheelSizeAssumed?: boolean
-  wheelSizeLabel?: string
   hooklessMaxKpa?: number
-  deflectionFloorKpa?: number
   safetyMinKpa?: number
   safetyMaxKpa?: number
-  limitedByDeflectionEnvelope?: boolean
-  geometryValid?: boolean
-  geometryReason?: string
   hooklessChecked?: boolean
   conflictingLimits?: boolean
 }
@@ -111,15 +120,17 @@ export interface PressureResult {
   warnings: string[]
   notes: string[]
   inputsUsed: string[]
-  effectiveIri?: number
-  surfaceDeflection?: number
-  appliedDeflectionModifier?: number
+  /** Human label for the surface condition that adjusted the baseline. */
+  surfaceLabel: string
+  surfaceFactor: number
+  wetFactor: number
   moisture?: MoistureClass
-  speedKmh?: number
-  speedAssumed?: boolean
+  /** Always false in V2.1. Speed is not a production pressure input. */
+  speedApplied: false
   tubeCoefficient?: number
   casingCoefficient?: number
   categoryCoefficient?: number
+  /** 2.1 — empirical Berto baseline plus condition adjustments. */
   modelVersion?: number
 }
 

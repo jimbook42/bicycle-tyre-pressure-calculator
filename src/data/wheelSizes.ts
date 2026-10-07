@@ -31,8 +31,8 @@ export interface ResolvedBeadSeat {
 }
 
 /**
- * Wheel size selects the bead-seat diameter. It is an input to Renart geometry,
- * not a display-only profile field.
+ * Wheel size selects a bead-seat diameter for the bike profile and for the
+ * Renart diagnostic. V2.1 pressure does not use it.
  * The 24 inch preset is the existing 650C option (571 mm), not a 507 mm 24 inch wheel.
  */
 export function resolveBeadSeat(diameterInches: number | undefined): ResolvedBeadSeat {

@@ -265,10 +265,11 @@ export function WeatherSection({
             >
               <option value="auto">Automatic from forecast</option>
               <option value="dry">Dry</option>
-              <option value="wet">Wet</option>
+              <option value="wet">Wet / likely wet</option>
             </select>
             <span className={`mt-1 block text-xs ${mutedText}`}>
-              Wet riding can favour a slightly lower pressure for grip. It is not a fixed deduction.
+              Wet or likely-wet riding lowers the starting pressure by a small calibrated amount.
+              It does not override tyre or rim limits.
             </span>
           </label>
         </div>

@@ -120,7 +120,7 @@ export function applyWeatherPressureAdjustments(input: ApplyWeatherInput): Weath
   const moisture =
     input.moisture ?? input.weather.moisture ?? (input.weather.isWetForecast ? 'wet' : 'dry')
   const wetLabel =
-    moisture === 'wet' ? 'Wet conditions' : moisture === 'damp' ? 'Damp conditions' : 'Dry conditions'
+    moisture === 'wet' || moisture === 'damp' ? 'Wet / likely wet' : 'Dry conditions'
   const compactLine = `Ride: ${input.weather.rideTempC.toFixed(0)}°C average • ${wetLabel}`
 
   const notes = [

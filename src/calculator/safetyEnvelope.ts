@@ -27,8 +27,6 @@ export function hooklessMaxKpa(sectionWidthMm: number): number | undefined {
 
 export interface SafetyClampInput {
   targetKpa: number
-  /** Pressure at the 30% section-height deflection. A floor, not a target. */
-  deflectionFloorKpa: number
   manufacturerMinKpa?: number
   manufacturerMaxKpa?: number
   hooklessMaxKpa?: number
@@ -47,22 +45,24 @@ export interface SafetyClamp {
 }
 
 /**
- * Hard safety envelope.
- * Maximum is the lowest applicable cap.
- * Minimum is the higher of the deflection floor and an explicit manufacturer minimum.
- * If those disagree, the maximum still wins and the conflict is flagged:
- * staying under a stated burst/compatibility cap is the conservative bound.
+ * Hard safety envelope, independent of the pressure model.
+ * Maximum is the lowest applicable cap (manufacturer maximum and, when it
+ * applies, the ISO hookless cap).
+ * Minimum is an explicit manufacturer minimum only. There is no Renart
+ * section-height floor and no synthetic PSI floor.
+ * If the minimum sits above the maximum, the maximum still wins and the
+ * conflict is flagged: staying under a stated burst or compatibility cap is
+ * the conservative bound.
  */
 export function applySafetyEnvelope(input: SafetyClampInput): SafetyClamp {
   const manufacturerMinKpa = finiteOrUndefined(input.manufacturerMinKpa)
   const manufacturerMaxKpa = finiteOrUndefined(input.manufacturerMaxKpa)
   const hookless = finiteOrUndefined(input.hooklessMaxKpa)
-  const floor = input.deflectionFloorKpa
   const maxCandidates = [manufacturerMaxKpa, hookless].filter(
     (value): value is number => value !== undefined,
   )
   const safetyMaxKpa = maxCandidates.length > 0 ? Math.min(...maxCandidates) : undefined
-  const safetyMinKpa = Math.max(floor, manufacturerMinKpa ?? floor)
+  const safetyMinKpa = manufacturerMinKpa ?? 0
 
   let clampedKpa = input.targetKpa
   let clampedToMin = false
@@ -71,9 +71,11 @@ export function applySafetyEnvelope(input: SafetyClampInput): SafetyClamp {
     clampedKpa = safetyMaxKpa
     clampedToMax = true
   }
-  if (clampedKpa < safetyMinKpa) {
-    clampedKpa = safetyMinKpa
+  if (manufacturerMinKpa !== undefined && clampedKpa < manufacturerMinKpa) {
+    clampedKpa = manufacturerMinKpa
     clampedToMin = true
+  } else if (clampedKpa < 0) {
+    clampedKpa = 0
   }
   let conflictingLimits = false
   if (safetyMaxKpa !== undefined && clampedKpa > safetyMaxKpa) {

@@ -1,4 +1,5 @@
 import { formatPressure } from '../calculator/units'
+import { surfaceCondition } from '../calculator/conditionModel'
 import type {
   AppPersistence,
   BikeProfile,
@@ -76,7 +77,7 @@ export function prependRideHistory(
 
 export function rideTypeLabel(type: RideType): string {
   if (type === 'mixed') return 'Mixed'
-  return type.charAt(0).toUpperCase() + type.slice(1)
+  return surfaceCondition(type, 0).label
 }
 
 export function formatRecommendedPressures(

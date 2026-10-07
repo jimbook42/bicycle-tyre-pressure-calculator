@@ -42,7 +42,7 @@ describe('pressureEngine', () => {
     expect(result.rear.clampedKpa).toBeGreaterThan(result.front.clampedKpa)
   })
 
-  it('mixed roughness sits between road and gravel without averaging pressures', () => {
+  it('mixed condition sits on the gravel-percentage blend of normal road and typical gravel', () => {
     const mixed = calculatePressure(
       baseInput({ ride: { type: 'mixed', gravelPercent: 50, packWeightKg: 0 } }),
     )
@@ -52,10 +52,7 @@ describe('pressureEngine', () => {
     )
     expect(mixed.front.targetKpa).toBeLessThan(road.front.targetKpa)
     expect(mixed.front.targetKpa).toBeGreaterThan(gravel.front.targetKpa)
-    expect(mixed.front.targetKpa).not.toBeCloseTo(
-      (road.front.targetKpa + gravel.front.targetKpa) / 2,
-      0,
-    )
+    expect(mixed.front.targetKpa).toBeCloseTo((road.front.targetKpa + gravel.front.targetKpa) / 2, 4)
   })
 
   it('0% gravel mixed matches the road roughness', () => {

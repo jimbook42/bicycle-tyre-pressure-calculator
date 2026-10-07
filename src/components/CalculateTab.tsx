@@ -20,12 +20,37 @@ import {
 } from '../ui/softUi'
 import type { AppTab } from './BottomTabs'
 
-const RIDE_TYPE_OPTIONS: { value: RideType; label: string }[] = [
-  { value: 'road', label: 'Road' },
-  { value: 'gravel', label: 'Gravel' },
-  { value: 'commute', label: 'Commute' },
-  { value: 'mixed', label: 'Mixed' },
+const FAMILY_OPTIONS: { value: 'road' | 'gravel' | 'mixed'; label: string; icon: RideType }[] = [
+  { value: 'road', label: 'Road', icon: 'road' },
+  { value: 'gravel', label: 'Gravel', icon: 'gravel' },
+  { value: 'mixed', label: 'Mixed', icon: 'mixed' },
 ]
+
+const ROAD_CONDITIONS: { value: RideType; label: string }[] = [
+  { value: 'road-smooth', label: 'Smooth' },
+  { value: 'road', label: 'Normal' },
+  { value: 'road-rough', label: 'Rough' },
+]
+
+const GRAVEL_CONDITIONS: { value: RideType; label: string }[] = [
+  { value: 'gravel-hardpack', label: 'Hardpack' },
+  { value: 'gravel', label: 'Typical' },
+  { value: 'gravel-rough', label: 'Rough' },
+  { value: 'gravel-very-rough', label: 'Very rough' },
+]
+
+function surfaceFamily(type: RideType): 'road' | 'gravel' | 'mixed' {
+  if (type === 'mixed') return 'mixed'
+  if (
+    type === 'gravel' ||
+    type === 'gravel-hardpack' ||
+    type === 'gravel-rough' ||
+    type === 'gravel-very-rough'
+  ) {
+    return 'gravel'
+  }
+  return 'road'
+}
 
 interface CalculateTabProps {
   state: AppPersistence
@@ -46,7 +71,6 @@ interface CalculateTabProps {
   previewLoading: boolean
   onNavigate: (tab: AppTab) => void
   onPackWeight: (v: string) => void
-  onExpectedSpeed: (v: string) => void
   onRideType: (v: RideType) => void
   onGravelPercent: (v: string) => void
   onPatchWeather: (patch: Partial<WeatherSettingsStored>) => void
@@ -74,7 +98,6 @@ export function CalculateTab({
   previewLoading,
   onNavigate,
   onPackWeight,
-  onExpectedSpeed,
   onRideType,
   onGravelPercent,
   onPatchWeather,
@@ -127,23 +150,84 @@ export function CalculateTab({
       <section className={`space-y-3 p-3 ${cardInner}`}>
         <h2 className={sectionTitle}>This ride</h2>
         <div>
-          <p className="text-sm font-medium">Ride type</p>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            {RIDE_TYPE_OPTIONS.map((opt) => (
+          <p className="text-sm font-medium">Surface</p>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {FAMILY_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
                 className={`flex min-w-0 flex-col items-center justify-center gap-1 px-2 py-2.5 text-xs sm:text-sm ${
-                  state.rideType === opt.value ? pillActive : pillIdle
+                  surfaceFamily(state.rideType) === opt.value ? pillActive : pillIdle
                 }`}
-                onClick={() => onRideType(opt.value)}
+                onClick={() => {
+                  if (opt.value === 'mixed') {
+                    onRideType('mixed')
+                    return
+                  }
+                  if (surfaceFamily(state.rideType) === opt.value) return
+                  onRideType(opt.value === 'road' ? 'road' : 'gravel')
+                }}
               >
-                <RideTypeIcon type={opt.value} />
+                <RideTypeIcon type={opt.icon} />
                 <span>{opt.label}</span>
               </button>
             ))}
           </div>
         </div>
+
+        {surfaceFamily(state.rideType) === 'road' && (
+          <div>
+            <p className="text-sm font-medium">Road condition</p>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {ROAD_CONDITIONS.map((opt) => {
+                const selected =
+                  state.rideType === opt.value ||
+                  (opt.value === 'road-rough' && state.rideType === 'commute')
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={`px-2 py-2 text-xs sm:text-sm ${selected ? pillActive : pillIdle}`}
+                    onClick={() => onRideType(opt.value)}
+                  >
+                    {opt.label}
+                  </button>
+                )
+              })}
+            </div>
+            <p className={`mt-2 text-xs ${mutedText}`}>
+              Normal road is the empirical baseline. Smooth raises it slightly. Rough lowers it slightly.
+            </p>
+            {state.rideType === 'commute' && (
+              <p className={`mt-1 text-xs ${mutedText}`}>
+                This saved commute setting uses the rough-road adjustment.
+              </p>
+            )}
+          </div>
+        )}
+
+        {surfaceFamily(state.rideType) === 'gravel' && (
+          <div>
+            <p className="text-sm font-medium">Gravel condition</p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {GRAVEL_CONDITIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={`px-2 py-2 text-xs sm:text-sm ${
+                    state.rideType === opt.value ? pillActive : pillIdle
+                  }`}
+                  onClick={() => onRideType(opt.value)}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <p className={`mt-2 text-xs ${mutedText}`}>
+              Hardpack is the smallest reduction. Rougher gravel steps down from there.
+            </p>
+          </div>
+        )}
 
         {state.rideType === 'mixed' && (
           <label className="block text-sm">
@@ -164,7 +248,8 @@ export function CalculateTab({
               onChange={(e) => onGravelPercent(e.target.value)}
             />
             <span className={`mt-1 block text-xs ${mutedText}`}>
-              Road portion: {Math.max(0, 100 - parseNum(state.gravelPercent, 0))}%
+              Blends the normal-road and typical-gravel adjustments. Road portion:{' '}
+              {Math.max(0, 100 - parseNum(state.gravelPercent, 0))}%
             </span>
           </label>
         )}
@@ -178,19 +263,6 @@ export function CalculateTab({
             value={state.packWeightKg}
             onChange={(e) => onPackWeight(e.target.value)}
           />
-        </label>
-        <label className="block text-sm">
-          Expected average speed (km/h) — optional
-          <input
-            className={fieldClassName}
-            inputMode="decimal"
-            placeholder="Blank uses 25"
-            value={state.expectedSpeedKmh}
-            onChange={(e) => onExpectedSpeed(e.target.value)}
-          />
-          <span className={`mt-1 block text-xs ${mutedText}`}>
-            Used as a bounded speed context. Leave blank for the 25 km/h reference.
-          </span>
         </label>
       </section>
 

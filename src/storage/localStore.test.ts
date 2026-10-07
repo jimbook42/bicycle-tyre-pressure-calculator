@@ -233,4 +233,39 @@ describe('localStore', () => {
     expect(loaded.feedback[0].frontFeel).toBe('too_soft')
     expect(loaded.feedback[0].rearFeel).toBe('too_hard')
   })
+
+  it('keeps existing bikes, feedback, and history when a V2.1 surface type is stored', () => {
+    const state = defaultAppPersistence()
+    state.rideType = 'road-smooth'
+    state.rideHistory = [
+      {
+        id: 'h1',
+        calculatedAt: '2026-03-01T00:00:00.000Z',
+        bikeId: state.bikes[0].id,
+        bikeName: 'My bike',
+        setupKey: 'legacy',
+        rideType: 'gravel',
+        gravelPercent: 0,
+        riderWeightKg: 75,
+        packWeightKg: 0,
+        systemWeightKg: 84,
+        tubeType: 'tubeless',
+        frontWidthMm: 40,
+        rearWidthMm: 40,
+        recommendedFrontKpa: 280,
+        recommendedRearKpa: 320,
+        baselineFrontKpa: 280,
+        baselineRearKpa: 320,
+        pressureUnit: 'psi',
+      },
+    ]
+    saveAppPersistence(state, storage)
+    const loaded = loadAppPersistence(storage)
+    expect(loaded.version).toBe(3)
+    expect(loaded.bikes).toHaveLength(1)
+    expect(loaded.rideType).toBe('road-smooth')
+    expect(loaded.rideHistory).toHaveLength(1)
+    expect(loaded.rideHistory[0].rideType).toBe('gravel')
+    expect(loaded.rideHistory[0].baselineRearKpa).toBe(320)
+  })
 })

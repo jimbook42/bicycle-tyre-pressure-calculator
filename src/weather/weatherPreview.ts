@@ -16,8 +16,9 @@ export function wetAdjustmentApplies(isWetForecast: boolean, wetMode: WetMode): 
 function gripLine(settings: WeatherSettingsStored, processed: ProcessedRideWeather): string {
   if (settings.wetMode === 'dry') return 'Wet grip adjustment: not applied'
   if (settings.wetMode === 'wet') return 'Wet grip adjustment: applied'
-  if (processed.moisture === 'damp') return 'Damp grip adjustment: applied'
-  if (processed.moisture === 'wet' || processed.isWetForecast) return 'Wet grip adjustment: applied'
+  if (processed.moisture === 'damp' || processed.moisture === 'wet' || processed.isWetForecast) {
+    return 'Wet grip adjustment: applied'
+  }
   return 'Wet grip adjustment: not applied'
 }
 

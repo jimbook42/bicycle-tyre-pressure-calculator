@@ -25,6 +25,7 @@ import { FeedbackTab } from './components/FeedbackTab'
 import { PressureResultDial } from './components/PressureResultDial'
 import { RiderTab } from './components/RiderTab'
 import { ScienceModal } from './components/ScienceModal'
+import { ReferencesPanel } from './components/ReferencesPanel'
 import { SettingsPanel } from './components/SettingsPanel'
 import { reverseGeocode, formatPlaceLabel } from './weather/geocoding'
 import { atmosphericPressureKpa } from './weather/temperaturePhysics'
@@ -78,6 +79,7 @@ export default function App() {
   const [calculating, setCalculating] = useState(false)
   const [activeTab, setActiveTab] = useState<AppTab>('calculate')
   const [scienceOpen, setScienceOpen] = useState(false)
+  const [referencesOpen, setReferencesOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [selectedRideHistoryId, setSelectedRideHistoryId] = useState<string | null>(null)
   const resultRef = useRef<HTMLElement | null>(null)
@@ -503,6 +505,7 @@ export default function App() {
         onOpenSettings={() => setSettingsOpen(true)}
       />
       <ScienceModal open={scienceOpen} onClose={() => setScienceOpen(false)} />
+      <ReferencesPanel open={referencesOpen} onClose={() => setReferencesOpen(false)} />
       <SettingsPanel
         open={settingsOpen}
         state={state}
@@ -514,6 +517,10 @@ export default function App() {
         onOpenScience={() => {
           setSettingsOpen(false)
           setScienceOpen(true)
+        }}
+        onOpenReferences={() => {
+          setSettingsOpen(false)
+          setReferencesOpen(true)
         }}
       />
 
@@ -538,7 +545,6 @@ export default function App() {
             previewLoading={previewLoading}
             onNavigate={setActiveTab}
             onPackWeight={(v) => updateApp('packWeightKg', v)}
-            onExpectedSpeed={(v) => updateApp('expectedSpeedKmh', v)}
             onRideType={(v) => updateApp('rideType', v)}
             onGravelPercent={(v) => updateApp('gravelPercent', v)}
             onPatchWeather={patchWeather}

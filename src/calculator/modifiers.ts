@@ -1,57 +1,9 @@
 import {
-  DAMP_DEFLECTION_BUMP,
-  DEFLECTION_MODIFIER_MAX,
-  DEFLECTION_MODIFIER_MIN,
-  REFERENCE_SPEED_KMH,
-  SPEED_BOUND_SPAN_KMH,
-  SPEED_DEFLECTION_BOUND,
-  WET_DEFLECTION_BUMP,
-  WET_SPEED_RELIEF,
   TUBE_COEFFICIENTS,
   CASING_COEFFICIENTS,
   CATEGORY_COEFFICIENTS,
 } from '../data/v2ModelConstants'
 import type { CasingType, MoistureClass, TubeType, TyreCategory } from '../types'
-
-export interface DeflectionModifiers {
-  speedKmh: number
-  speedAssumed: boolean
-  moisture: MoistureClass
-  /** Multiplier applied to the surface deflection target. Bounded. */
-  factor: number
-  speedFactor: number
-  wetFactor: number
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value))
-}
-
-/**
- * Bounded speed and wet-grip adjustment of the deflection target. [A]
- *
- * Higher speed slightly reduces target deflection (a firmer starting point)
- * because speed changes vibration and rolling context. Wet and damp slightly
- * increase target deflection because lower pressure can favour grip. The wet
- * term shrinks as speed rises above the reference so the two do not multiply
- * into a large change. Coefficients are calibration choices, not a universal
- * PSI law.
- */
-export function deflectionModifiers(
-  expectedSpeedKmh: number | undefined,
-  moisture: MoistureClass | undefined,
-): DeflectionModifiers {
-  const speedAssumed = expectedSpeedKmh === undefined || !Number.isFinite(expectedSpeedKmh)
-  const speedKmh = speedAssumed ? REFERENCE_SPEED_KMH : expectedSpeedKmh
-  const wetness = moisture ?? 'dry'
-  const speedUnit = clamp((speedKmh - REFERENCE_SPEED_KMH) / SPEED_BOUND_SPAN_KMH, -1, 1)
-  const speedFactor = 1 - SPEED_DEFLECTION_BOUND * speedUnit
-  const bump = wetness === 'wet' ? WET_DEFLECTION_BUMP : wetness === 'damp' ? DAMP_DEFLECTION_BUMP : 0
-  const relief = 1 - WET_SPEED_RELIEF * Math.max(0, speedUnit)
-  const wetFactor = 1 + bump * relief
-  const factor = clamp(speedFactor * wetFactor, DEFLECTION_MODIFIER_MIN, DEFLECTION_MODIFIER_MAX)
-  return { speedKmh, speedAssumed, moisture: wetness, factor, speedFactor, wetFactor }
-}
 
 export interface ConstructionFactors {
   tube: number

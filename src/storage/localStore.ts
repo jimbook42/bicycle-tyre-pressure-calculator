@@ -7,11 +7,13 @@ import type {
   RideFeedback,
   RideFeel,
   RideHistoryRecord,
+  RideType,
   StoredAppStateV1,
   TubeType,
   TyreCategory,
   WeatherSettingsStored,
 } from '../types'
+import { isRideType } from '../data/rideTypes'
 
 const STORAGE_KEY_V1 = 'bicycle-tyre-pressure-calculator:v1'
 const STORAGE_KEY_V2 = 'bicycle-tyre-pressure-calculator:v2'
@@ -22,6 +24,10 @@ export const SCHEMA_VERSION = 3
 const TUBE_TYPES: TubeType[] = ['butyl', 'tpu', 'tubeless', 'latex']
 const TYRE_CATEGORIES: TyreCategory[] = ['road', 'allroad', 'gravel']
 const CASING_TYPES: CasingType[] = ['standard', 'endurance', 'race', 'reinforced']
+
+function asRideType(value: unknown, fallback: RideType): RideType {
+  return isRideType(value) ? value : fallback
+}
 
 function asTubeType(value: unknown, fallback: TubeType): TubeType {
   return typeof value === 'string' && TUBE_TYPES.includes(value as TubeType)
@@ -150,7 +156,7 @@ export function migrateFromV1(legacy: StoredAppStateV1): AppPersistence {
     riderWeightKg: legacy.riderWeightKg ?? defaults.riderWeightKg,
     bikes: [bike],
     selectedBikeId: bike.id,
-    rideType: legacy.rideType ?? defaults.rideType,
+    rideType: asRideType(legacy.rideType, defaults.rideType),
     gravelPercent: legacy.gravelPercent ?? defaults.gravelPercent,
     packWeightKg: legacy.packWeightKg ?? defaults.packWeightKg,
     expectedSpeedKmh: defaults.expectedSpeedKmh,
@@ -211,7 +217,7 @@ function normalizeFeedback(raw: unknown): RideFeedback[] {
       bikeId: typeof record.bikeId === 'string' ? record.bikeId : '',
       bikeName: typeof record.bikeName === 'string' ? record.bikeName : 'Bike',
       setupKey: record.setupKey,
-      rideType: record.rideType ?? 'road',
+      rideType: asRideType(record.rideType, 'road'),
       gravelPercent: typeof record.gravelPercent === 'number' ? record.gravelPercent : 0,
       systemWeightKg: typeof record.systemWeightKg === 'number' ? record.systemWeightKg : 0,
       tubeType: asTubeType(record.tubeType, 'tubeless'),
@@ -266,7 +272,7 @@ function normalizeRideHistory(raw: unknown): RideHistoryRecord[] {
       bikeId: typeof record.bikeId === 'string' ? record.bikeId : '',
       bikeName: typeof record.bikeName === 'string' ? record.bikeName : 'Bike',
       setupKey: record.setupKey,
-      rideType: record.rideType ?? 'road',
+      rideType: asRideType(record.rideType, 'road'),
       gravelPercent: typeof record.gravelPercent === 'number' ? record.gravelPercent : 0,
       riderWeightKg: typeof record.riderWeightKg === 'number' ? record.riderWeightKg : 0,
       packWeightKg: typeof record.packWeightKg === 'number' ? record.packWeightKg : 0,
@@ -355,7 +361,7 @@ export function normalizeAppPersistence(raw: unknown): AppPersistence {
       typeof data.riderWeightKg === 'string' ? data.riderWeightKg : defaults.riderWeightKg,
     bikes,
     selectedBikeId,
-    rideType: data.rideType ?? defaults.rideType,
+    rideType: asRideType(data.rideType, defaults.rideType),
     gravelPercent:
       typeof data.gravelPercent === 'string' ? data.gravelPercent : defaults.gravelPercent,
     packWeightKg:

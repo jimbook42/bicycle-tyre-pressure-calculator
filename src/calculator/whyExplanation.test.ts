@@ -48,9 +48,11 @@ describe('Why explanation', () => {
     const starting = lines.find((line) => line.label === 'Starting pressure')
     expect(starting?.text).toContain('Front 68 PSI')
     expect(starting?.text).toContain('Rear 100 PSI')
-    expect(lines.find((line) => line.label === 'Personalisation')?.text).toBe(
+    expect(lines.find((line) => line.label === 'Personalisation')?.text).toContain(
       'Based on 1 comparable ride',
     )
-    expect(lines.find((line) => line.label === 'Surface')?.text).toContain('IRI')
+    expect(lines.find((line) => line.label === 'Surface')?.text).not.toMatch(/IRI/)
+    expect(lines.find((line) => line.label === 'Empirical baseline')?.text).toMatch(/curve fit/i)
+    expect(lines.map((line) => line.label)).toContain('Starting pressure')
   })
 })

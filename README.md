@@ -1,6 +1,10 @@
 # Bicycle Tyre Pressure Calculator
 
-Fast starting front/rear tyre pressures for a specific ride. Client-only Vite + React app. Version 2 estimates a starting pressure from wheel load, tyre/rim geometry, and a surface deflection target. It does not claim a single optimal pressure.
+Evidence-backed starting front and rear tyre pressures for a planned ride. Client-only Vite + React app.
+
+**Version 2.1 — empirical Berto baseline + evidence-informed condition adjustments + temperature + safety + bounded personalisation.**
+
+It does not claim a single optimal pressure. The baseline is a published curve fit to Frank Berto’s 15% tyre-drop chart, not Berto’s own equation. Surface and wet conditions apply small calibrated adjustments around that baseline. Renart does not set the pressure. See `SCIENCE.md` for sources, calibrations, and limits.
 
 ## Stack
 
@@ -8,6 +12,8 @@ Fast starting front/rear tyre pressures for a specific ride. Client-only Vite + 
 - Tailwind CSS
 - Vitest for the pressure engine
 - Browser `localStorage` for bikes, rides, and feedback (schema version 3, stored under the existing `bicycle-tyre-pressure-calculator:v2` key)
+
+Version 2.1 does not reset saved bikes, rides, feedback, settings, or personalisation. Older `road` notes still match normal road. Older `gravel` notes still match typical gravel. A saved commute ride keeps its type and uses the rough-road adjustment.
 
 ## Scripts
 
@@ -29,8 +35,8 @@ No environment variables are required.
 
 ## Project layout
 
-- `src/calculator/` — Version 2 pressure engine, Renart geometry, surface, modifiers, safety, units
-- `src/data/` — model constants, with `[P]`, `[L]`, and `[A]` tags in `v2ModelConstants.ts`
+- `src/calculator/` — Version 2.1 pressure engine, Berto baseline, condition adjustments, safety, Renart diagnostic
+- `src/data/` — model constants, references, and version
 - `src/types/` — shared TypeScript types
 - `src/storage/` — `localStorage` persistence and schema migration
 - `SCIENCE.md` — sources, calibration choices, and limitations

@@ -105,7 +105,7 @@ describe('representative scenarios', () => {
       input({ ride: { type: 'road', gravelPercent: 0, packWeightKg: 0, moisture: 'wet' } }),
     )
     expect(wetRide.front.targetKpa).toBeLessThan(base.front.targetKpa)
-    expect(wetRide.front.targetKpa / base.front.targetKpa).not.toBeCloseTo(0.97, 2)
+    expect(wetRide.front.targetKpa / base.front.targetKpa).toBeCloseTo(0.96, 2)
   })
 
   it('15-16 repeated Good feedback, including a pressure different from the recommendation', () => {

@@ -9,31 +9,42 @@ function baseline(frontPsi: number, rearPsi: number, limits?: { min?: number; ma
   const rearKpa = psiToKpa(rearPsi)
   const minKpa = limits?.min !== undefined ? psiToKpa(limits.min) : undefined
   const maxKpa = limits?.max !== undefined ? psiToKpa(limits.max) : undefined
-  return {
+    const wheelBase = {
+      surfaceFactor: 1,
+      wetFactor: 1,
+      widthMeasured: false,
+      extrapolated: false,
+      extrapolationReasons: [] as string[],
+      manufacturerMinKpa: minKpa,
+      manufacturerMaxKpa: maxKpa,
+      clampedToMin: false,
+      clampedToMax: false,
+    }
+    return {
     front: {
       targetKpa: frontKpa,
+      bertoBaselineKpa: frontKpa,
       clampedKpa: frontKpa,
       effectiveWidthMm: 28,
       wheelLoadKg: 30,
-      manufacturerMinKpa: minKpa,
-      manufacturerMaxKpa: maxKpa,
-      clampedToMin: false,
-      clampedToMax: false,
+      ...wheelBase,
     },
     rear: {
       targetKpa: rearKpa,
+      bertoBaselineKpa: rearKpa,
       clampedKpa: rearKpa,
       effectiveWidthMm: 28,
       wheelLoadKg: 50,
-      manufacturerMinKpa: minKpa,
-      manufacturerMaxKpa: maxKpa,
-      clampedToMin: false,
-      clampedToMax: false,
+      ...wheelBase,
     },
     systemWeightKg: 84,
     frontLoadPercent: 40,
     rearLoadPercent: 60,
     surfaceModel: 'road',
+    surfaceLabel: 'Normal road',
+    surfaceFactor: 1,
+    wetFactor: 1,
+    speedApplied: false,
     warnings: [],
     notes: [],
     inputsUsed: [],

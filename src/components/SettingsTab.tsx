@@ -13,6 +13,7 @@ interface SettingsTabProps {
   onTemperatureUnit: (unit: TemperatureDisplayUnit) => void
   onApplyPersonalisation: (value: boolean) => void
   onOpenScience: () => void
+  onOpenReferences: () => void
 }
 
 export function SettingsTab({
@@ -22,6 +23,7 @@ export function SettingsTab({
   onTemperatureUnit,
   onApplyPersonalisation,
   onOpenScience,
+  onOpenReferences,
 }: SettingsTabProps) {
   return (
     <section className={`space-y-4 p-4 ${cardOuter}`}>
@@ -73,9 +75,14 @@ export function SettingsTab({
           Weight and pressure calculations always use kilograms and scientific units internally.
           Display units only change what you see.
         </p>
-        <button type="button" className={btnRaised} onClick={onOpenScience}>
-          Science
-        </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" className={btnRaised} onClick={onOpenScience}>
+            Science
+          </button>
+          <button type="button" className={btnRaised} onClick={onOpenReferences}>
+            References
+          </button>
+        </div>
       </div>
     </section>
   )

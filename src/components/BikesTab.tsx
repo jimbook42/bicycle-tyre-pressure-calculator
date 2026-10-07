@@ -170,6 +170,11 @@ export function BikesTab({
           className={`${cardInner} p-3`}
         >
           <summary className="cursor-pointer text-sm font-medium">Advanced setup (optional)</summary>
+          <p className={`mt-2 text-xs ${mutedText}`}>
+            Measured width feeds the pressure baseline. Rim internal width and wheel size stay with
+            the bike and do not change this version’s pressure. Rim type and manufacturer limits still
+            apply. Casing and tube type are recorded and do not add a pressure multiplier.
+          </p>
           <div className="mt-3 space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <label className="min-w-0 text-sm">

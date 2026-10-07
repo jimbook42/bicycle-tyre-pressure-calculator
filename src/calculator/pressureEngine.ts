@@ -1,11 +1,5 @@
 import { DEFAULT_FRONT_LOAD_PERCENT } from '../data/constants'
-import {
-  DEFAULT_RIM_INTERNAL_WIDTH_MM,
-  GRAVITY_M_S2,
-  MAX_SECTION_HEIGHT_DEFLECTION,
-  NARROW_DEFAULT_RIM_FRACTION,
-} from '../data/v2ModelConstants'
-import { resolveBeadSeat } from '../data/wheelSizes'
+import { PRESSURE_MODEL_VERSION } from '../data/appVersion'
 import type {
   AdvancedSetup,
   CalculatorInput,
@@ -14,10 +8,10 @@ import type {
   RimType,
   WheelPressureDetail,
 } from '../types'
-import { constructionFactors, deflectionModifiers } from './modifiers'
-import { renartGaugePressurePa, renartGeometry } from './renart'
+import { bertoBaseline } from './bertoBaseline'
+import { surfaceCondition, wetPressureFactor } from './conditionModel'
+import { constructionFactors } from './modifiers'
 import { applySafetyEnvelope, hooklessMaxKpa } from './safetyEnvelope'
-import { effectiveIri, targetDeflectionFraction } from './surfaceModel'
 
 export function systemWeightKg(input: CalculatorInput): number {
   return input.rider.weightKg + input.bike.weightKg + (input.ride.packWeightKg || 0)
@@ -35,29 +29,21 @@ function loadSplit(advanced: AdvancedSetup | undefined): {
   return { frontPercent: clampedFront, rearPercent: 100 - clampedFront }
 }
 
-export function resolveRimInternalMm(
-  tyreWidthMm: number,
-  suppliedMm: number | undefined,
-): { mm: number; assumed: boolean } {
-  if (suppliedMm !== undefined && Number.isFinite(suppliedMm) && suppliedMm > 0) {
-    return { mm: suppliedMm, assumed: false }
-  }
-  if (DEFAULT_RIM_INTERNAL_WIDTH_MM < tyreWidthMm) {
-    return { mm: DEFAULT_RIM_INTERNAL_WIDTH_MM, assumed: true }
-  }
-  return { mm: tyreWidthMm * NARROW_DEFAULT_RIM_FRACTION, assumed: true }
-}
-
-function emptyWheel(loadKg: number, widthMm: number, reason: string): WheelPressureDetail {
+function emptyWheel(loadKg: number, widthMm: number): WheelPressureDetail {
   return {
     targetKpa: 0,
+    bertoBaselineKpa: 0,
+    surfaceFactor: 1,
+    wetFactor: 1,
+    widthMeasured: false,
+    extrapolated: true,
+    extrapolationReasons: ['Tyre width or wheel load is not usable.'],
     clampedKpa: 0,
     effectiveWidthMm: widthMm,
     wheelLoadKg: loadKg,
     clampedToMin: false,
     clampedToMax: false,
-    geometryValid: false,
-    geometryReason: reason,
+    conflictingLimits: false,
   }
 }
 
@@ -65,44 +51,28 @@ function wheelPressure(args: {
   loadKg: number
   nominalWidthMm: number
   measuredWidthMm: number | undefined
-  rimInternalMm: number | undefined
-  wheelDiameterInches: number | undefined
   rimType: RimType | undefined
   manufacturerMinKpa?: number
   manufacturerMaxKpa?: number
-  iri: number
-  modifierFactor: number
-  constructionScale: number
+  surfaceFactor: number
+  wetFactor: number
 }): WheelPressureDetail {
-  const widthMm = args.measuredWidthMm ?? args.nominalWidthMm
-  const rim = resolveRimInternalMm(widthMm, args.rimInternalMm)
-  const bead = resolveBeadSeat(args.wheelDiameterInches)
-  const geometry = renartGeometry(widthMm / 1000, rim.mm / 1000, bead.bsdMm / 1000)
-  const loadN = args.loadKg * GRAVITY_M_S2
-  if (!geometry.valid) {
-    return emptyWheel(args.loadKg, widthMm, geometry.reason ?? 'Invalid tyre/rim geometry.')
+  const widthMeasured =
+    args.measuredWidthMm !== undefined &&
+    Number.isFinite(args.measuredWidthMm) &&
+    args.measuredWidthMm > 0
+  const widthMm = widthMeasured ? args.measuredWidthMm! : args.nominalWidthMm
+  if (!(widthMm > 0) || !(args.loadKg >= 0) || !Number.isFinite(args.loadKg)) {
+    return emptyWheel(args.loadKg, widthMm)
   }
 
-  const surfaceFraction = targetDeflectionFraction(args.iri)
-  let fraction = surfaceFraction * args.modifierFactor
-  let limitedByDeflectionEnvelope = false
-  if (fraction > MAX_SECTION_HEIGHT_DEFLECTION) {
-    fraction = MAX_SECTION_HEIGHT_DEFLECTION
-    limitedByDeflectionEnvelope = true
-  }
-
-  const deflectionM = fraction * geometry.sectionHeightM
-  const floorM = MAX_SECTION_HEIGHT_DEFLECTION * geometry.sectionHeightM
-  const scale = args.constructionScale > 0 ? args.constructionScale : 1
-  const targetKpa = renartGaugePressurePa(loadN, geometry, deflectionM, scale) / 1000
-  const deflectionFloorKpa = renartGaugePressurePa(loadN, geometry, floorM, scale) / 1000
-
+  const baseline = bertoBaseline(args.loadKg, widthMm)
+  const targetKpa = baseline.kpa * args.surfaceFactor * args.wetFactor
   const applyHookless = args.rimType !== 'hooked'
   const sectionForHookless = Math.max(args.nominalWidthMm, widthMm)
   const hookless = applyHookless ? hooklessMaxKpa(sectionForHookless) : undefined
   const safety = applySafetyEnvelope({
     targetKpa,
-    deflectionFloorKpa,
     manufacturerMinKpa: args.manufacturerMinKpa,
     manufacturerMaxKpa: args.manufacturerMaxKpa,
     hooklessMaxKpa: hookless,
@@ -110,19 +80,14 @@ function wheelPressure(args: {
 
   return {
     targetKpa,
+    bertoBaselineKpa: baseline.kpa,
+    surfaceFactor: args.surfaceFactor,
+    wetFactor: args.wetFactor,
+    widthMeasured,
+    extrapolated: baseline.extrapolated,
+    extrapolationReasons: baseline.reasons,
     effectiveWidthMm: widthMm,
     wheelLoadKg: args.loadKg,
-    wheelLoadN: loadN,
-    deflectionFraction: fraction,
-    sectionHeightMm: geometry.sectionHeightM * 1000,
-    rimInternalWidthMm: rim.mm,
-    rimInternalAssumed: rim.assumed,
-    beadSeatDiameterMm: bead.bsdMm,
-    wheelSizeAssumed: bead.assumed,
-    wheelSizeLabel: bead.label,
-    deflectionFloorKpa,
-    limitedByDeflectionEnvelope,
-    geometryValid: true,
     hooklessChecked: applyHookless,
     ...safety,
   }
@@ -133,29 +98,30 @@ function buildMetadata(input: CalculatorInput, frontPercent: number): string[] {
   const adv = input.advanced
   if (adv?.frontMeasuredWidthMm !== undefined) used.push('Front measured tyre width')
   if (adv?.rearMeasuredWidthMm !== undefined) used.push('Rear measured tyre width')
-  if (adv?.rimInternalWidthMm !== undefined) used.push('Rim internal width')
   if (adv?.rimType === 'hookless') used.push('Rim type: hookless')
   if (adv?.rimType === 'hooked') used.push('Rim type: hooked')
   if (adv?.frontManufacturerLimits !== undefined) used.push('Front manufacturer limits')
   if (adv?.rearManufacturerLimits !== undefined) used.push('Rear manufacturer limits')
   if (adv?.frontLoadPercent !== undefined) used.push(`Front load override: ${frontPercent}%`)
-  if (adv?.wheelDiameterInches !== undefined) used.push('Wheel size')
   return used
 }
 
 /**
- * V2 starting pressure.
- * Load → geometry → Renart → surface deflection → speed/wet → safety.
- * Temperature and personalisation are applied by later steps.
+ * V2.1 starting pressure.
+ * Per-wheel load and measured width → Berto-chart regression → surface factor →
+ * wet factor → safety envelope.
+ * Temperature and personalisation are later steps. Speed, casing, tube type,
+ * rim internal width, and wheel diameter do not change this pressure.
+ * Renart is not on this path.
  */
 export function calculatePressure(input: CalculatorInput): PressureResult {
   const systemKg = systemWeightKg(input)
   const { frontPercent, rearPercent } = loadSplit(input.advanced)
   const warnings: string[] = []
   const notes: string[] = []
-  const iri = effectiveIri(input.ride.type, input.ride.gravelPercent)
   const moisture: MoistureClass = input.ride.moisture ?? 'dry'
-  const modifiers = deflectionModifiers(input.ride.expectedSpeedKmh, moisture)
+  const surface = surfaceCondition(input.ride.type, input.ride.gravelPercent)
+  const wetFactor = wetPressureFactor(moisture)
   const construction = constructionFactors(
     input.tyres.tubeType,
     input.tyres.casing,
@@ -175,12 +141,9 @@ export function calculatePressure(input: CalculatorInput): PressureResult {
   }
 
   const shared = {
-    rimInternalMm: adv?.rimInternalWidthMm,
-    wheelDiameterInches: adv?.wheelDiameterInches,
     rimType,
-    iri,
-    modifierFactor: modifiers.factor,
-    constructionScale: construction.combined,
+    surfaceFactor: surface.factor,
+    wetFactor,
   }
   const front = wheelPressure({
     ...shared,
@@ -203,49 +166,41 @@ export function calculatePressure(input: CalculatorInput): PressureResult {
     ['Front', front],
     ['Rear', rear],
   ] as const) {
-    if (!wheel.geometryValid) {
-      warnings.push(`${label} tyre/rim geometry is not valid. ${wheel.geometryReason ?? ''}`.trim())
-    }
     if (wheel.clampedToMax) {
-      warnings.push(`${label} pressure was capped by a safety maximum.`)
+      warnings.push(
+        `${label} recommendation was capped by a safety maximum. The model target was higher.`,
+      )
     }
     if (wheel.clampedToMin) {
-      warnings.push(`${label} pressure was raised to a safety minimum.`)
+      warnings.push(`${label} pressure was raised to a manufacturer minimum.`)
     }
     if (wheel.conflictingLimits) {
       warnings.push(
         `${label} manufacturer minimum sits above the maximum cap. The maximum was kept.`,
       )
     }
-  }
-  if (front.rimInternalAssumed || rear.rimInternalAssumed) {
-    const width = front.rimInternalWidthMm ?? rear.rimInternalWidthMm
-    notes.push(
-      `Rim internal width was not entered. Using ${width?.toFixed(1)} mm, so this result is less refined.`,
-    )
-  }
-  if (front.wheelSizeAssumed || rear.wheelSizeAssumed) {
-    notes.push('Wheel size was not entered. Bead-seat diameter assumed 622 mm (700C).')
-  }
-  if (modifiers.speedAssumed) {
-    notes.push(`Expected speed omitted. Using the ${modifiers.speedKmh} km/h reference.`)
-  }
-  if (moisture === 'wet' || moisture === 'damp') {
-    notes.push(
-      'Wet-grip context lowered the starting pressure slightly. This is a bounded calibration, not a fixed wet deduction.',
-    )
+    for (const reason of wheel.extrapolationReasons) {
+      warnings.push(`${label}: ${reason}. The baseline is an extrapolated curve fit.`)
+    }
   }
   if (construction.unknownTube) {
     warnings.push('Tube system was not recognised. No tube offset was applied.')
   }
-  if (input.ride.type === 'mixed') {
+  if (moisture === 'wet' || moisture === 'damp') {
     notes.push(
-      `Mixed surface uses an RMS roughness of ${iri.toFixed(1)} m/km at ${input.ride.gravelPercent}% gravel, not a blend of two pressures.`,
+      'Wet or likely-wet conditions apply a small grip-oriented reduction before the safety limits. The size of that reduction is an engineering calibration, not the measured grip change.',
     )
   }
-
-  const surfaceModel =
-    input.ride.type === 'gravel' ? 'gravel' : input.ride.type === 'mixed' ? 'mixed' : 'road'
+  if (input.ride.type === 'mixed') {
+    notes.push(
+      `Mixed surface weights the normal-road and typical-gravel adjustments by ${input.ride.gravelPercent}% gravel. It is not treated as pure gravel.`,
+    )
+  }
+  if (input.ride.type === 'commute') {
+    notes.push(
+      'This saved commute setting uses the rough-road adjustment. Older commute notes still match this ride type.',
+    )
+  }
 
   return {
     front,
@@ -253,21 +208,20 @@ export function calculatePressure(input: CalculatorInput): PressureResult {
     systemWeightKg: systemKg,
     frontLoadPercent: frontPercent,
     rearLoadPercent: rearPercent,
-    surfaceModel,
+    surfaceModel: surface.family,
     rideType: input.ride.type,
     mixedGravelPercent: input.ride.type === 'mixed' ? input.ride.gravelPercent : undefined,
     warnings,
     notes,
     inputsUsed: buildMetadata(input, frontPercent),
-    effectiveIri: iri,
-    surfaceDeflection: targetDeflectionFraction(iri),
-    appliedDeflectionModifier: modifiers.factor,
+    surfaceLabel: surface.label,
+    surfaceFactor: surface.factor,
+    wetFactor,
     moisture,
-    speedKmh: modifiers.speedKmh,
-    speedAssumed: modifiers.speedAssumed,
+    speedApplied: false,
     tubeCoefficient: construction.tube,
     casingCoefficient: construction.casing,
     categoryCoefficient: construction.category,
-    modelVersion: 2,
+    modelVersion: PRESSURE_MODEL_VERSION,
   }
 }

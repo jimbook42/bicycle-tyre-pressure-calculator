@@ -11,6 +11,7 @@ interface SettingsPanelProps {
   onTemperatureUnit: (unit: TemperatureDisplayUnit) => void
   onApplyPersonalisation: (value: boolean) => void
   onOpenScience: () => void
+  onOpenReferences: () => void
 }
 
 export function SettingsPanel({
@@ -22,6 +23,7 @@ export function SettingsPanel({
   onTemperatureUnit,
   onApplyPersonalisation,
   onOpenScience,
+  onOpenReferences,
 }: SettingsPanelProps) {
   if (!open) return null
   return (
@@ -43,6 +45,7 @@ export function SettingsPanel({
           onTemperatureUnit={onTemperatureUnit}
           onApplyPersonalisation={onApplyPersonalisation}
           onOpenScience={onOpenScience}
+          onOpenReferences={onOpenReferences}
         />
         <div className="px-4 pb-4">
           <button type="button" className={`w-full ${btnRaised}`} onClick={onClose}>

@@ -2,17 +2,44 @@ import type {
   AppPersistence,
   BikeAdvancedStored,
   BikeProfile,
+  CasingType,
   PressureUnit,
   RideFeedback,
   RideFeel,
   RideHistoryRecord,
   StoredAppStateV1,
   TubeType,
+  TyreCategory,
   WeatherSettingsStored,
 } from '../types'
 
 const STORAGE_KEY_V1 = 'bicycle-tyre-pressure-calculator:v1'
 const STORAGE_KEY_V2 = 'bicycle-tyre-pressure-calculator:v2'
+
+/** In-file schema. The storage key stays v2 so existing browsers are migrated in place. */
+export const SCHEMA_VERSION = 3
+
+const TUBE_TYPES: TubeType[] = ['butyl', 'tpu', 'tubeless', 'latex']
+const TYRE_CATEGORIES: TyreCategory[] = ['road', 'allroad', 'gravel']
+const CASING_TYPES: CasingType[] = ['standard', 'endurance', 'race', 'reinforced']
+
+function asTubeType(value: unknown, fallback: TubeType): TubeType {
+  return typeof value === 'string' && TUBE_TYPES.includes(value as TubeType)
+    ? (value as TubeType)
+    : fallback
+}
+
+function asCategory(value: unknown): TyreCategory | '' {
+  return typeof value === 'string' && TYRE_CATEGORIES.includes(value as TyreCategory)
+    ? (value as TyreCategory)
+    : ''
+}
+
+function asCasing(value: unknown): CasingType | '' {
+  return typeof value === 'string' && CASING_TYPES.includes(value as CasingType)
+    ? (value as CasingType)
+    : ''
+}
 
 export function defaultWeatherSettings(): WeatherSettingsStored {
   return {
@@ -60,6 +87,9 @@ export function createBikeProfile(overrides: Partial<BikeProfile> = {}): BikePro
     frontWidthMm: '28',
     rearWidthMm: '28',
     tubeType: 'tubeless',
+    tyreCategory: '',
+    casing: '',
+    tyreModel: '',
     ...rest,
     advanced: { ...defaultBikeAdvanced(), ...advancedOverrides },
   }
@@ -68,7 +98,7 @@ export function createBikeProfile(overrides: Partial<BikeProfile> = {}): BikePro
 export function defaultAppPersistence(): AppPersistence {
   const bike = createBikeProfile({ name: 'My bike' })
   return {
-    version: 2,
+    version: SCHEMA_VERSION,
     darkMode: true,
     riderWeightKg: '75',
     bikes: [bike],
@@ -76,6 +106,7 @@ export function defaultAppPersistence(): AppPersistence {
     rideType: 'road',
     gravelPercent: '30',
     packWeightKg: '0',
+    expectedSpeedKmh: '',
     pressureUnit: 'psi',
     weightUnit: 'kg',
     temperatureUnit: 'celsius',
@@ -94,7 +125,10 @@ export function migrateFromV1(legacy: StoredAppStateV1): AppPersistence {
     weightKg: legacy.bikeWeightKg ?? defaults.bikes[0].weightKg,
     frontWidthMm: legacy.frontWidthMm ?? defaults.bikes[0].frontWidthMm,
     rearWidthMm: legacy.rearWidthMm ?? defaults.bikes[0].rearWidthMm,
-    tubeType: (legacy.tubeType ?? defaults.bikes[0].tubeType) as TubeType,
+    tubeType: asTubeType(legacy.tubeType, defaults.bikes[0].tubeType),
+    tyreCategory: '',
+    casing: '',
+    tyreModel: '',
     advanced: {
       ...defaultBikeAdvanced(),
       frontMeasuredWidthMm: legacy.frontMeasuredWidthMm ?? '',
@@ -111,7 +145,7 @@ export function migrateFromV1(legacy: StoredAppStateV1): AppPersistence {
   })
 
   return {
-    version: 2,
+    version: SCHEMA_VERSION,
     darkMode: defaults.darkMode,
     riderWeightKg: legacy.riderWeightKg ?? defaults.riderWeightKg,
     bikes: [bike],
@@ -119,6 +153,7 @@ export function migrateFromV1(legacy: StoredAppStateV1): AppPersistence {
     rideType: legacy.rideType ?? defaults.rideType,
     gravelPercent: legacy.gravelPercent ?? defaults.gravelPercent,
     packWeightKg: legacy.packWeightKg ?? defaults.packWeightKg,
+    expectedSpeedKmh: defaults.expectedSpeedKmh,
     pressureUnit: (legacy.pressureUnit ?? defaults.pressureUnit) as PressureUnit,
     weightUnit: defaults.weightUnit,
     temperatureUnit: defaults.temperatureUnit,
@@ -144,7 +179,10 @@ function normalizeBike(raw: unknown, index: number): BikeProfile {
     frontWidthMm:
       typeof b.frontWidthMm === 'string' ? b.frontWidthMm : defaults.frontWidthMm,
     rearWidthMm: typeof b.rearWidthMm === 'string' ? b.rearWidthMm : defaults.rearWidthMm,
-    tubeType: (b.tubeType ?? defaults.tubeType) as TubeType,
+    tubeType: asTubeType(b.tubeType, defaults.tubeType),
+    tyreCategory: asCategory(b.tyreCategory),
+    casing: asCasing(b.casing),
+    tyreModel: typeof b.tyreModel === 'string' ? b.tyreModel : '',
     advanced: adv,
   }
 }
@@ -176,7 +214,7 @@ function normalizeFeedback(raw: unknown): RideFeedback[] {
       rideType: record.rideType ?? 'road',
       gravelPercent: typeof record.gravelPercent === 'number' ? record.gravelPercent : 0,
       systemWeightKg: typeof record.systemWeightKg === 'number' ? record.systemWeightKg : 0,
-      tubeType: (record.tubeType ?? 'tubeless') as TubeType,
+      tubeType: asTubeType(record.tubeType, 'tubeless'),
       frontWidthMm: typeof record.frontWidthMm === 'number' ? record.frontWidthMm : 0,
       rearWidthMm: typeof record.rearWidthMm === 'number' ? record.rearWidthMm : 0,
       baselineFrontKpa: record.baselineFrontKpa,
@@ -184,6 +222,12 @@ function normalizeFeedback(raw: unknown): RideFeedback[] {
       actualFrontKpa: record.actualFrontKpa,
       actualRearKpa: record.actualRearKpa,
       result: record.result as RideFeel,
+      frontFeel: RIDE_FEELS.includes(record.frontFeel as RideFeel)
+        ? (record.frontFeel as RideFeel)
+        : undefined,
+      rearFeel: RIDE_FEELS.includes(record.rearFeel as RideFeel)
+        ? (record.rearFeel as RideFeel)
+        : undefined,
       notes: typeof record.notes === 'string' ? record.notes : '',
       weatherLocationLabel:
         typeof record.weatherLocationLabel === 'string' ? record.weatherLocationLabel : undefined,
@@ -227,7 +271,7 @@ function normalizeRideHistory(raw: unknown): RideHistoryRecord[] {
       riderWeightKg: typeof record.riderWeightKg === 'number' ? record.riderWeightKg : 0,
       packWeightKg: typeof record.packWeightKg === 'number' ? record.packWeightKg : 0,
       systemWeightKg: typeof record.systemWeightKg === 'number' ? record.systemWeightKg : 0,
-      tubeType: (record.tubeType ?? 'tubeless') as TubeType,
+      tubeType: asTubeType(record.tubeType, 'tubeless'),
       frontWidthMm: typeof record.frontWidthMm === 'number' ? record.frontWidthMm : 0,
       rearWidthMm: typeof record.rearWidthMm === 'number' ? record.rearWidthMm : 0,
       recommendedFrontKpa: record.recommendedFrontKpa,
@@ -305,7 +349,7 @@ export function normalizeAppPersistence(raw: unknown): AppPersistence {
   }
 
   return {
-    version: 2,
+    version: SCHEMA_VERSION,
     darkMode: typeof data.darkMode === 'boolean' ? data.darkMode : defaults.darkMode,
     riderWeightKg:
       typeof data.riderWeightKg === 'string' ? data.riderWeightKg : defaults.riderWeightKg,
@@ -316,6 +360,8 @@ export function normalizeAppPersistence(raw: unknown): AppPersistence {
       typeof data.gravelPercent === 'string' ? data.gravelPercent : defaults.gravelPercent,
     packWeightKg:
       typeof data.packWeightKg === 'string' ? data.packWeightKg : defaults.packWeightKg,
+    expectedSpeedKmh:
+      typeof data.expectedSpeedKmh === 'string' ? data.expectedSpeedKmh : defaults.expectedSpeedKmh,
     pressureUnit: (data.pressureUnit ?? defaults.pressureUnit) as PressureUnit,
     weightUnit:
       data.weightUnit === 'lb' || data.weightUnit === 'kg'

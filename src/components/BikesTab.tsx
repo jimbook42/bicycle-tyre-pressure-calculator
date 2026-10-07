@@ -1,4 +1,5 @@
-import type { AppPersistence, BikeAdvancedStored, BikeProfile, TubeType } from '../types'
+import type { AppPersistence, BikeAdvancedStored, BikeProfile, CasingType, TubeType, TyreCategory } from '../types'
+import { tubeLabel } from '../calculator/labels'
 import {
   WHEEL_SIZE_OPTIONS,
   inchesFromWheelSizeId,
@@ -29,12 +30,6 @@ interface BikesTabProps {
 
 const MEASURED_WIDTH_HELP =
   'Actual width of the inflated tyre on your wheel. Rim width can make a tyre measure wider or narrower than its labelled size.'
-
-function tubeLabel(tube: BikeProfile['tubeType']): string {
-  if (tube === 'tubeless') return 'Tubeless'
-  if (tube === 'tpu') return 'TPU'
-  return 'Butyl'
-}
 
 export function BikesTab({
   state,
@@ -155,7 +150,18 @@ export function BikesTab({
             <option value="butyl">Butyl</option>
             <option value="tpu">TPU</option>
             <option value="tubeless">Tubeless</option>
+            <option value="latex">Latex</option>
           </select>
+        </label>
+
+        <label className="block text-sm">
+          Tyre model (optional)
+          <input
+            className={fieldClassName}
+            value={selectedBike.tyreModel}
+            placeholder="e.g. GP 5000"
+            onChange={(e) => onPatchBike({ tyreModel: e.target.value })}
+          />
         </label>
 
         <details
@@ -165,6 +171,37 @@ export function BikesTab({
         >
           <summary className="cursor-pointer text-sm font-medium">Advanced setup (optional)</summary>
           <div className="mt-3 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <label className="min-w-0 text-sm">
+                Tyre category
+                <select
+                  className={fieldClassName}
+                  value={selectedBike.tyreCategory}
+                  onChange={(e) =>
+                    onPatchBike({ tyreCategory: e.target.value as TyreCategory | '' })
+                  }
+                >
+                  <option value="">Not specified</option>
+                  <option value="road">Road</option>
+                  <option value="allroad">All-road</option>
+                  <option value="gravel">Gravel</option>
+                </select>
+              </label>
+              <label className="min-w-0 text-sm">
+                Casing
+                <select
+                  className={fieldClassName}
+                  value={selectedBike.casing}
+                  onChange={(e) => onPatchBike({ casing: e.target.value as CasingType | '' })}
+                >
+                  <option value="">Not specified</option>
+                  <option value="standard">Standard</option>
+                  <option value="endurance">Endurance / reinforced</option>
+                  <option value="race">Race / lightweight</option>
+                  <option value="reinforced">Reinforced / puncture-resistant</option>
+                </select>
+              </label>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <label className="min-w-0 text-sm">
                 <span className="inline-flex items-center gap-1">

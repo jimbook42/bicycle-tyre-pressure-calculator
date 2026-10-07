@@ -9,15 +9,23 @@ interface FeedbackTabProps {
   selectedRideId: string | null
   actualFront: string
   actualRear: string
-  rideFeel: RideFeel
+  frontFeel: RideFeel
+  rearFeel: RideFeel
   rideNote: string
   feedbackMessage: string | null
   onSelectRide: (rideId: string | null) => void
   onActualFront: (v: string) => void
   onActualRear: (v: string) => void
-  onRideFeel: (v: RideFeel) => void
+  onFrontFeel: (v: RideFeel) => void
+  onRearFeel: (v: RideFeel) => void
   onRideNote: (v: string) => void
   onSave: () => void
+}
+
+function feelWord(feel: RideFeel): string {
+  if (feel === 'too_hard') return 'Too hard'
+  if (feel === 'too_soft') return 'Too soft'
+  return 'Good'
 }
 
 function formatRideDate(iso: string): string {
@@ -43,13 +51,15 @@ export function FeedbackTab({
   selectedRideId,
   actualFront,
   actualRear,
-  rideFeel,
+  frontFeel,
+  rearFeel,
   rideNote,
   feedbackMessage,
   onSelectRide,
   onActualFront,
   onActualRear,
-  onRideFeel,
+  onFrontFeel,
+  onRearFeel,
   onRideNote,
   onSave,
 }: FeedbackTabProps) {
@@ -121,18 +131,33 @@ export function FeedbackTab({
               />
             </label>
           </div>
-          <label className="block text-sm">
-            How did it feel?
-            <select
-              className={fieldClassName}
-              value={rideFeel}
-              onChange={(e) => onRideFeel(e.target.value as RideFeel)}
-            >
-              <option value="too_hard">Too hard</option>
-              <option value="good">Good</option>
-              <option value="too_soft">Too soft</option>
-            </select>
-          </label>
+          <p className="text-sm font-medium">How did it feel?</p>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="min-w-0 text-sm">
+              Front
+              <select
+                className={fieldClassName}
+                value={frontFeel}
+                onChange={(e) => onFrontFeel(e.target.value as RideFeel)}
+              >
+                <option value="too_soft">Too soft</option>
+                <option value="good">Good</option>
+                <option value="too_hard">Too hard</option>
+              </select>
+            </label>
+            <label className="min-w-0 text-sm">
+              Rear
+              <select
+                className={fieldClassName}
+                value={rearFeel}
+                onChange={(e) => onRearFeel(e.target.value as RideFeel)}
+              >
+                <option value="too_soft">Too soft</option>
+                <option value="good">Good</option>
+                <option value="too_hard">Too hard</option>
+              </select>
+            </label>
+          </div>
           <label className="block text-sm">
             Notes (optional)
             <input
@@ -163,11 +188,9 @@ export function FeedbackTab({
                   {formatPressure(entry.baselineRearKpa, unit)} {unitLabel(unit)} · rode{' '}
                   {formatPressure(entry.actualFrontKpa, unit)}/
                   {formatPressure(entry.actualRearKpa, unit)} ·{' '}
-                  {entry.result === 'too_hard'
-                    ? 'Too hard'
-                    : entry.result === 'too_soft'
-                      ? 'Too soft'
-                      : 'Good'}
+                  {entry.frontFeel || entry.rearFeel
+                    ? `front ${feelWord(entry.frontFeel ?? entry.result)}, rear ${feelWord(entry.rearFeel ?? entry.result)}`
+                    : feelWord(entry.result)}
                 </p>
               </li>
             ))}

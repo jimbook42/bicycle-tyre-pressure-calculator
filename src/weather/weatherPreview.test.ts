@@ -33,7 +33,7 @@ describe('weather preview', () => {
     expect(preview.temperatureLine).toContain('12–14°C')
     expect(preview.temperatureLine).toContain('Now 14°C')
     expect(preview.rainLine).toBe('Rain possible')
-    expect(preview.wetLine).toBe('Wet adjustment: Applied')
+    expect(preview.wetLine).toBe('Wet grip adjustment: applied')
   })
 
   it('uses the future ride window rather than the current moment', () => {

@@ -267,6 +267,9 @@ export function WeatherSection({
               <option value="dry">Dry</option>
               <option value="wet">Wet</option>
             </select>
+            <span className={`mt-1 block text-xs ${mutedText}`}>
+              Wet riding can favour a slightly lower pressure for grip. It is not a fixed deduction.
+            </span>
           </label>
         </div>
       </details>

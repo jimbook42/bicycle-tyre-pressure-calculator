@@ -38,17 +38,18 @@ describe('weatherAdjustment', () => {
     expect(outcome.unavailableMessage).toMatch(/Weather unavailable/i)
   })
 
-  it('applies wet override downward on riding target', () => {
+  it('does not apply a wet percentage inside the temperature step', () => {
     const outcome = applyWeatherPressureAdjustments({
       frontBaselineKpa: baseFront,
       rearBaselineKpa: baseRear,
-      weather: weather({ isWetForecast: true }),
+      weather: weather({ isWetForecast: true, moisture: 'wet' }),
       wetMode: 'wet',
+      moisture: 'wet',
       inflationTempC: 10,
       inflationAssumed: false,
     })
     expect(outcome.active).toBe(true)
-    expect(outcome.front!.targetRidingGaugeKpa).toBeLessThan(baseFront)
+    expect(outcome.front!.targetRidingGaugeKpa).toBeCloseTo(baseFront, 3)
     expect(outcome.wetLabel).toMatch(/Wet/)
   })
 

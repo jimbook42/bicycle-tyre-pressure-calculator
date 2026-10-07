@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { buildCalculatorInput, parseNum } from './calculator/buildInput'
+import { casingLabel, categoryLabel, combinedFeel, tubeLabel } from './calculator/labels'
+import { resolveRideMoisture } from './calculator/modifiers'
 import {
   personalisePressure,
   resetPersonalisation,
@@ -7,8 +9,9 @@ import {
   type PersonalisationAdjustment,
 } from './calculator/personalisation'
 import { calculatePressure } from './calculator/pressureEngine'
-import { displayToKpa, formatPressure, psiToKpa, unitLabel } from './calculator/units'
+import { displayToKpa, formatPressure, unitLabel } from './calculator/units'
 import { validateForCalculation } from './calculator/validation'
+import { buildWhyLines } from './calculator/whyExplanation'
 import {
   applyWeatherPressureAdjustments,
   resolveInflationTemperature,
@@ -24,6 +27,7 @@ import { RiderTab } from './components/RiderTab'
 import { ScienceModal } from './components/ScienceModal'
 import { SettingsPanel } from './components/SettingsPanel'
 import { reverseGeocode, formatPlaceLabel } from './weather/geocoding'
+import { atmosphericPressureKpa } from './weather/temperaturePhysics'
 import { createRideHistoryRecord, prependRideHistory } from './storage/rideHistory'
 import { fetchProcessedRideWeather, type SessionCoordinates } from './weather/rideWeatherService'
 import { createOpenMeteoProvider } from './weather/openMeteoProvider'
@@ -57,7 +61,8 @@ export default function App() {
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [actualFront, setActualFront] = useState('')
   const [actualRear, setActualRear] = useState('')
-  const [rideFeel, setRideFeel] = useState<RideFeel>('good')
+  const [frontFeel, setFrontFeel] = useState<RideFeel>('good')
+  const [rearFeel, setRearFeel] = useState<RideFeel>('good')
   const [rideNote, setRideNote] = useState('')
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null)
   const [weatherOutcome, setWeatherOutcome] = useState<WeatherPressureOutcome | null>(null)
@@ -293,16 +298,6 @@ export default function App() {
     setError(null)
     setFeedbackMessage(null)
     try {
-      const baseline = calculatePressure(validation.input)
-      const key = evidenceKeyFor(state, bike, baseline.systemWeightKg)
-      const personal = personalisePressure(baseline, state.feedback, key)
-      const frontBase = state.applyPersonalisation
-        ? personal.front.personalisedKpa
-        : baseline.front.clampedKpa
-      const rearBase = state.applyPersonalisation
-        ? personal.rear.personalisedKpa
-        : baseline.rear.clampedKpa
-
       let processedWeather = null
       try {
         processedWeather = await fetchProcessedRideWeather(
@@ -329,17 +324,27 @@ export default function App() {
           locationLabel: '',
           rideTempC: 0,
           isWetForecast: false,
+          moisture: 'dry' as const,
           providerId: 'open-meteo',
           attribution: '',
           confidence: 'none' as const,
         }
       }
 
-      const adv = bike.advanced
-      const frontMin = adv.frontMinPsi.trim() ? psiToKpa(parseNum(adv.frontMinPsi)) : undefined
-      const frontMax = adv.frontMaxPsi.trim() ? psiToKpa(parseNum(adv.frontMaxPsi)) : undefined
-      const rearMin = adv.rearMinPsi.trim() ? psiToKpa(parseNum(adv.rearMinPsi)) : undefined
-      const rearMax = adv.rearMaxPsi.trim() ? psiToKpa(parseNum(adv.rearMaxPsi)) : undefined
+      const moisture = resolveRideMoisture(state.weather.wetMode, processedWeather?.moisture)
+      const input = {
+        ...validation.input,
+        ride: { ...validation.input.ride, moisture },
+      }
+      const baseline = calculatePressure(input)
+      const key = evidenceKeyFor(state, bike, baseline.systemWeightKg)
+      const personal = personalisePressure(baseline, state.feedback, key)
+      const frontBase = state.applyPersonalisation
+        ? personal.front.personalisedKpa
+        : baseline.front.clampedKpa
+      const rearBase = state.applyPersonalisation
+        ? personal.rear.personalisedKpa
+        : baseline.rear.clampedKpa
 
       const manualInflation =
         state.weather.inflationMode === 'manual' && state.weather.inflationManualC.trim()
@@ -349,16 +354,19 @@ export default function App() {
         manualInflation !== null && Number.isFinite(manualInflation) ? manualInflation : null,
         processedWeather?.currentAmbientTempC,
       )
+      const atmosphericKpa = atmosphericPressureKpa(processedWeather?.elevationM)
 
       const weatherAdj = applyWeatherPressureAdjustments({
         frontBaselineKpa: frontBase,
         rearBaselineKpa: rearBase,
-        frontMinKpa: frontMin,
-        frontMaxKpa: frontMax,
-        rearMinKpa: rearMin,
-        rearMaxKpa: rearMax,
+        frontMinKpa: baseline.front.safetyMinKpa,
+        frontMaxKpa: baseline.front.safetyMaxKpa,
+        rearMinKpa: baseline.rear.safetyMinKpa,
+        rearMaxKpa: baseline.rear.safetyMaxKpa,
         weather: processedWeather,
         wetMode: state.weather.wetMode,
+        moisture,
+        atmosphericKpa,
         inflationTempC:
           state.weather.inflationMode === 'manual' ? inflationResolved.tempC : null,
         inflationAssumed: state.weather.inflationMode === 'manual' ? inflationResolved.assumed : false,
@@ -367,11 +375,12 @@ export default function App() {
       setResult(baseline)
       setAdjustment(personal)
       setWeatherOutcome(weatherAdj)
-      const shownFront = weatherAdj.active ? weatherAdj.front!.displayGaugeKpa : frontBase
-      const shownRear = weatherAdj.active ? weatherAdj.rear!.displayGaugeKpa : rearBase
+      const shownFront = weatherAdj.active ? weatherAdj.front!.targetRidingGaugeKpa : frontBase
+      const shownRear = weatherAdj.active ? weatherAdj.rear!.targetRidingGaugeKpa : rearBase
       setActualFront(formatPressure(shownFront, state.pressureUnit))
       setActualRear(formatPressure(shownRear, state.pressureUnit))
-      setRideFeel('good')
+      setFrontFeel('good')
+      setRearFeel('good')
       setRideNote('')
 
       const historyRecord = createRideHistoryRecord({
@@ -455,7 +464,9 @@ export default function App() {
       baselineRearKpa,
       actualFrontKpa: displayToKpa(front, feedbackUnit),
       actualRearKpa: displayToKpa(rear, feedbackUnit),
-      result: rideFeel,
+      result: combinedFeel(frontFeel, rearFeel),
+      frontFeel,
+      rearFeel,
       notes: rideNote.trim(),
       weatherLocationLabel:
         ride?.locationLabel ?? (state.weather.locationLabel || undefined),
@@ -527,6 +538,7 @@ export default function App() {
             previewLoading={previewLoading}
             onNavigate={setActiveTab}
             onPackWeight={(v) => updateApp('packWeightKg', v)}
+            onExpectedSpeed={(v) => updateApp('expectedSpeedKmh', v)}
             onRideType={(v) => updateApp('rideType', v)}
             onGravelPercent={(v) => updateApp('gravelPercent', v)}
             onPatchWeather={patchWeather}
@@ -586,86 +598,51 @@ export default function App() {
                 {detailsOpen ? 'Hide' : 'Why?'}
               </button>
 
-              {detailsOpen && (
+              {detailsOpen && result && (
                 <div
                   className={`mt-3 space-y-2 border-t border-[#e8e2d8] pt-3 text-sm dark:border-[#333]`}
                 >
-                  <p>
-                    <strong>Bike:</strong> {selectedBike.name}
-                  </p>
-                  <p>
-                    <strong>Baseline:</strong> front {formatPressure(result.front.clampedKpa, unit)}{' '}
-                    {unitLabel(unit)}, rear {formatPressure(result.rear.clampedKpa, unit)}{' '}
-                    {unitLabel(unit)}
-                  </p>
-                  <p>
-                    <strong>System weight:</strong> {result.systemWeightKg.toFixed(1)} kg
-                  </p>
-                  <p>
-                    <strong>Load split:</strong> front {result.frontLoadPercent}% / rear{' '}
-                    {result.rearLoadPercent}%
-                  </p>
-                  <p>
-                    <strong>Tyre widths used:</strong> front{' '}
-                    {result.front.effectiveWidthMm.toFixed(1)} mm, rear{' '}
-                    {result.rear.effectiveWidthMm.toFixed(1)} mm
-                  </p>
-                  <p>
-                    <strong>Ride type:</strong>{' '}
-                    {result.surfaceModel === 'mixed'
-                      ? `Mixed (${result.mixedGravelPercent}% gravel blend)`
-                      : state.rideType}
-                  </p>
-                  {(result.front.manufacturerMinKpa !== undefined ||
-                    result.front.manufacturerMaxKpa !== undefined) && (
-                    <p>
-                      <strong>Front limits (kPa):</strong>{' '}
-                      {result.front.manufacturerMinKpa?.toFixed(0) ?? '—'} –{' '}
-                      {result.front.manufacturerMaxKpa?.toFixed(0) ?? '—'}
-                    </p>
-                  )}
-                  {(result.rear.manufacturerMinKpa !== undefined ||
-                    result.rear.manufacturerMaxKpa !== undefined) && (
-                    <p>
-                      <strong>Rear limits (kPa):</strong>{' '}
-                      {result.rear.manufacturerMinKpa?.toFixed(0) ?? '—'} –{' '}
-                      {result.rear.manufacturerMaxKpa?.toFixed(0) ?? '—'}
-                    </p>
-                  )}
-                  {result.inputsUsed.length > 0 && (
-                    <div>
-                      <strong>Advanced values used:</strong>
-                      <ul className="list-disc pl-5">
-                        {result.inputsUsed.map((line) => (
-                          <li key={line}>{line}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {weatherOutcome?.active && (
-                    <>
-                      <p>
-                        <strong>Expected air temperature on the ride:</strong>{' '}
-                        {weatherOutcome.rideTempC?.toFixed(0)}°C (average for your ride window)
-                      </p>
-                      <p>
-                        <strong>Inflation temperature:</strong>{' '}
-                        {weatherOutcome.inflationTempC?.toFixed(0)}°C
-                        {weatherOutcome.inflationAssumed ? ' (assumed)' : ''}
-                      </p>
-                      {weatherOutcome.notes.map((note) => (
-                        <p key={note} className={mutedText}>{note}</p>
-                      ))}
-                    </>
-                  )}
-                  {result.notes.map((note) => (
-                    <p key={note} className={mutedText}>
-                      {note}
+                  {buildWhyLines({
+                    bikeName: selectedBike.name,
+                    result,
+                    formatPressure: (kpa) => formatPressure(kpa, unit),
+                    unit,
+                    tubeLabel: tubeLabel(selectedBike.tubeType),
+                    categoryLabel: categoryLabel(selectedBike.tyreCategory),
+                    casingLabel: casingLabel(selectedBike.casing),
+                    tyreModel: selectedBike.tyreModel.trim() || undefined,
+                    personalisation: adjustment,
+                    personalisationEnabled: state.applyPersonalisation,
+                    shownFront: formatPressure(frontDisplayKpa(), unit),
+                    shownRear: formatPressure(rearDisplayKpa(), unit),
+                    weather: weatherOutcome
+                      ? {
+                          active: weatherOutcome.active,
+                          rideTempC: weatherOutcome.rideTempC,
+                          inflationTempC: weatherOutcome.inflationTempC,
+                          inflationAssumed: weatherOutcome.inflationAssumed,
+                          pumpFront: weatherOutcome.front
+                            ? formatPressure(weatherOutcome.front.displayGaugeKpa, unit)
+                            : undefined,
+                          pumpRear: weatherOutcome.rear
+                            ? formatPressure(weatherOutcome.rear.displayGaugeKpa, unit)
+                            : undefined,
+                        }
+                      : undefined,
+                  }).map((line) => (
+                    <p key={line.label} className="whitespace-pre-line">
+                      <strong>{line.label}:</strong> {line.text}
                     </p>
                   ))}
+                  {weatherOutcome?.active &&
+                    weatherOutcome.notes.map((note) => (
+                      <p key={note} className={mutedText}>
+                        {note}
+                      </p>
+                    ))}
                   <p className={mutedText}>
-                    Feedback you save here stays on this device and gently adjusts future suggestions
-                    for similar setups.
+                    Saved ride feedback stays on this device and can gently adjust future
+                    suggestions for comparable setups. It does not change the physical model.
                   </p>
                   {state.applyPersonalisation && (
                     <button
@@ -749,7 +726,8 @@ export default function App() {
           selectedRideId={selectedRideHistoryId}
           actualFront={actualFront}
           actualRear={actualRear}
-          rideFeel={rideFeel}
+          frontFeel={frontFeel}
+          rearFeel={rearFeel}
           rideNote={rideNote}
           feedbackMessage={feedbackMessage}
           onSelectRide={(id) => {
@@ -765,7 +743,8 @@ export default function App() {
           }}
           onActualFront={setActualFront}
           onActualRear={setActualRear}
-          onRideFeel={setRideFeel}
+          onFrontFeel={setFrontFeel}
+          onRearFeel={setRearFeel}
           onRideNote={setRideNote}
           onSave={saveRideFeedback}
         />

@@ -36,6 +36,9 @@ export function buildCalculatorInput(
     ? parseNum(adv.wheelDiameterInches)
     : undefined
   const frontLoad = adv.frontLoadPercent.trim() ? parseNum(adv.frontLoadPercent) : undefined
+  const expectedSpeed = state.expectedSpeedKmh.trim()
+    ? parseNum(state.expectedSpeedKmh)
+    : undefined
 
   return {
     rider: { weightKg: riderWeightKg },
@@ -44,11 +47,15 @@ export function buildCalculatorInput(
       type: state.rideType,
       gravelPercent: Math.min(100, Math.max(0, parseNum(state.gravelPercent, 0))),
       packWeightKg,
+      expectedSpeedKmh: expectedSpeed,
     },
     tyres: {
       frontWidthMm,
       rearWidthMm,
       tubeType: bike.tubeType,
+      category: bike.tyreCategory || undefined,
+      casing: bike.casing || undefined,
+      modelName: bike.tyreModel.trim() || undefined,
     },
     advanced: {
       frontMeasuredWidthMm: frontMeasured,

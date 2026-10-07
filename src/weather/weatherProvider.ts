@@ -38,6 +38,10 @@ export interface ProcessedRideWeather {
   rideTempC: number
   currentAmbientTempC?: number
   isWetForecast: boolean
+  /** Dry / damp / wet over the ride window. Wet matches isWetForecast. */
+  moisture?: 'dry' | 'damp' | 'wet'
+  /** Metres above sea level when the forecast payload includes it. */
+  elevationM?: number
   /** Dominant WMO weather code during the ride window (for display). */
   dominantWeatherCode?: number
   /** Lowest and highest ambient samples inside the ride window. */
@@ -48,6 +52,11 @@ export interface ProcessedRideWeather {
   confidence: 'full' | 'partial' | 'none'
 }
 
+export interface ForecastBundle {
+  hourly: HourlyForecastPoint[]
+  elevationM?: number
+}
+
 export interface WeatherProvider {
   readonly id: string
   searchPlaces(query: string, limit?: number): Promise<GeoPlace[]>
@@ -55,7 +64,7 @@ export interface WeatherProvider {
     latitude: number,
     longitude: number,
     window: RideWindow,
-  ): Promise<HourlyForecastPoint[]>
+  ): Promise<ForecastBundle>
 }
 
 export interface FetchLike {

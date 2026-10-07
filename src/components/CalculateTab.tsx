@@ -1,5 +1,6 @@
 import { formatWeightFromKg } from '../calculator/displayUnits'
 import { parseNum } from '../calculator/buildInput'
+import { tubeLabel } from '../calculator/labels'
 import type { AppPersistence, BikeProfile, RideType, WeightDisplayUnit } from '../types'
 import { RideTypeIcon } from '../ui/icons'
 import { WeatherSection } from './WeatherSection'
@@ -26,12 +27,6 @@ const RIDE_TYPE_OPTIONS: { value: RideType; label: string }[] = [
   { value: 'mixed', label: 'Mixed' },
 ]
 
-function tubeLabel(tube: BikeProfile['tubeType']): string {
-  if (tube === 'tubeless') return 'Tubeless'
-  if (tube === 'tpu') return 'TPU'
-  return 'Butyl'
-}
-
 interface CalculateTabProps {
   state: AppPersistence
   selectedBike: BikeProfile
@@ -51,6 +46,7 @@ interface CalculateTabProps {
   previewLoading: boolean
   onNavigate: (tab: AppTab) => void
   onPackWeight: (v: string) => void
+  onExpectedSpeed: (v: string) => void
   onRideType: (v: RideType) => void
   onGravelPercent: (v: string) => void
   onPatchWeather: (patch: Partial<WeatherSettingsStored>) => void
@@ -78,6 +74,7 @@ export function CalculateTab({
   previewLoading,
   onNavigate,
   onPackWeight,
+  onExpectedSpeed,
   onRideType,
   onGravelPercent,
   onPatchWeather,
@@ -181,6 +178,19 @@ export function CalculateTab({
             value={state.packWeightKg}
             onChange={(e) => onPackWeight(e.target.value)}
           />
+        </label>
+        <label className="block text-sm">
+          Expected average speed (km/h) — optional
+          <input
+            className={fieldClassName}
+            inputMode="decimal"
+            placeholder="Blank uses 25"
+            value={state.expectedSpeedKmh}
+            onChange={(e) => onExpectedSpeed(e.target.value)}
+          />
+          <span className={`mt-1 block text-xs ${mutedText}`}>
+            Used as a bounded speed context. Leave blank for the 25 km/h reference.
+          </span>
         </label>
       </section>
 

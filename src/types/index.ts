@@ -6,7 +6,13 @@ export type TemperatureDisplayUnit = 'celsius' | 'fahrenheit'
 
 export type RideType = 'road' | 'gravel' | 'commute' | 'mixed'
 
-export type TubeType = 'butyl' | 'tpu' | 'tubeless'
+export type TubeType = 'butyl' | 'tpu' | 'tubeless' | 'latex'
+
+export type TyreCategory = 'road' | 'allroad' | 'gravel'
+
+export type CasingType = 'standard' | 'endurance' | 'race' | 'reinforced'
+
+export type MoistureClass = 'dry' | 'damp' | 'wet'
 
 export type RimType = 'hooked' | 'hookless'
 
@@ -23,12 +29,19 @@ export interface Ride {
   /** 0–100; used when type is mixed */
   gravelPercent: number
   packWeightKg: number
+  /** Omitted speed uses the documented reference. km/h. */
+  expectedSpeedKmh?: number
+  /** Dry when weather is unavailable and the rider has not forced wet. */
+  moisture?: MoistureClass
 }
 
 export interface TyreSetup {
   frontWidthMm: number
   rearWidthMm: number
   tubeType: TubeType
+  category?: TyreCategory
+  casing?: CasingType
+  modelName?: string
 }
 
 export interface ManufacturerLimits {
@@ -67,6 +80,23 @@ export interface WheelPressureDetail {
   manufacturerMaxKpa?: number
   clampedToMin: boolean
   clampedToMax: boolean
+  wheelLoadN?: number
+  deflectionFraction?: number
+  sectionHeightMm?: number
+  rimInternalWidthMm?: number
+  rimInternalAssumed?: boolean
+  beadSeatDiameterMm?: number
+  wheelSizeAssumed?: boolean
+  wheelSizeLabel?: string
+  hooklessMaxKpa?: number
+  deflectionFloorKpa?: number
+  safetyMinKpa?: number
+  safetyMaxKpa?: number
+  limitedByDeflectionEnvelope?: boolean
+  geometryValid?: boolean
+  geometryReason?: string
+  hooklessChecked?: boolean
+  conflictingLimits?: boolean
 }
 
 export interface PressureResult {
@@ -76,10 +106,21 @@ export interface PressureResult {
   frontLoadPercent: number
   rearLoadPercent: number
   surfaceModel: SurfaceModel | 'mixed'
+  rideType?: RideType
   mixedGravelPercent?: number
   warnings: string[]
   notes: string[]
   inputsUsed: string[]
+  effectiveIri?: number
+  surfaceDeflection?: number
+  appliedDeflectionModifier?: number
+  moisture?: MoistureClass
+  speedKmh?: number
+  speedAssumed?: boolean
+  tubeCoefficient?: number
+  casingCoefficient?: number
+  categoryCoefficient?: number
+  modelVersion?: number
 }
 
 /** Optional advanced fields stored as strings in the UI / persistence layer. */
@@ -103,6 +144,10 @@ export interface BikeProfile {
   frontWidthMm: string
   rearWidthMm: string
   tubeType: TubeType
+  /** Empty string means not specified. */
+  tyreCategory: TyreCategory | ''
+  casing: CasingType | ''
+  tyreModel: string
   advanced: BikeAdvancedStored
 }
 
@@ -126,6 +171,9 @@ export interface RideFeedback {
   actualFrontKpa: number
   actualRearKpa: number
   result: RideFeel
+  /** Independent wheel feedback. Falls back to `result` when absent. */
+  frontFeel?: RideFeel
+  rearFeel?: RideFeel
   notes: string
   /** Human-readable location when weather was used; no precise coordinates stored. */
   weatherLocationLabel?: string
@@ -184,7 +232,7 @@ export interface WeatherSettingsStored {
 }
 
 export interface AppPersistence {
-  version: 2
+  version: 3
   /** When true, `html` gets class `dark` for Soft UI dark theme. */
   darkMode: boolean
   riderWeightKg: string
@@ -193,6 +241,8 @@ export interface AppPersistence {
   rideType: RideType
   gravelPercent: string
   packWeightKg: string
+  /** Blank means the reference speed is used. */
+  expectedSpeedKmh: string
   pressureUnit: PressureUnit
   weightUnit: WeightDisplayUnit
   temperatureUnit: TemperatureDisplayUnit

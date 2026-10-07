@@ -29,8 +29,8 @@ describe('openMeteoProvider', () => {
       durationMinutes: 60,
     }
     const hourly = await provider.fetchHourlyForecast(-36.8, 174.7, window)
-    expect(hourly).toHaveLength(3)
-    expect(hourly[1].temperatureC).toBe(14)
+    expect(hourly.hourly).toHaveLength(3)
+    expect(hourly.hourly[1].temperatureC).toBe(14)
 
     const processed = await buildProcessedRideWeather(
       provider,

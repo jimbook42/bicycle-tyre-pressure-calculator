@@ -67,6 +67,27 @@ export function validateForCalculation(
     }
   }
 
+  if (state.expectedSpeedKmh.trim()) {
+    const speed = parseNum(state.expectedSpeedKmh)
+    if (speed < 5 || speed > 80) {
+      return { ok: false, message: 'Expected speed must be between 5 and 80 km/h, or left blank.' }
+    }
+  }
+
+  const rim = adv.rimInternalWidthMm.trim() ? parseNum(adv.rimInternalWidthMm) : undefined
+  const frontUsed = adv.frontMeasuredWidthMm.trim()
+    ? parseNum(adv.frontMeasuredWidthMm)
+    : frontWidthMm
+  const rearUsed = adv.rearMeasuredWidthMm.trim()
+    ? parseNum(adv.rearMeasuredWidthMm)
+    : rearWidthMm
+  if (rim !== undefined && (rim <= 0 || rim >= frontUsed || rim >= rearUsed)) {
+    return {
+      ok: false,
+      message: 'Rim internal width must be positive and narrower than each tyre width.',
+    }
+  }
+
   if (
     invalidLimits(adv.frontMinPsi, adv.frontMaxPsi) ||
     invalidLimits(adv.rearMinPsi, adv.rearMaxPsi)

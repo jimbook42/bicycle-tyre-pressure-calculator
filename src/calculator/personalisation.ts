@@ -77,7 +77,9 @@ function desiredPressureKpa(actualKpa: number, feel: RideFeel): number {
 function offsetForWheel(record: RideFeedback, wheel: 'front' | 'rear'): number {
   const baseline = wheel === 'front' ? record.baselineFrontKpa : record.baselineRearKpa
   const actual = wheel === 'front' ? record.actualFrontKpa : record.actualRearKpa
-  return desiredPressureKpa(actual, record.result) - baseline
+  const feel =
+    wheel === 'front' ? (record.frontFeel ?? record.result) : (record.rearFeel ?? record.result)
+  return desiredPressureKpa(actual, feel) - baseline
 }
 
 interface WeightedOffset {
@@ -183,15 +185,15 @@ export function personalisePressure(
   const matching = records.filter((record) => record.setupKey === setupKey)
   const front = personaliseWheel(
     baseline.front.clampedKpa,
-    baseline.front.manufacturerMinKpa,
-    baseline.front.manufacturerMaxKpa,
+    baseline.front.safetyMinKpa ?? baseline.front.manufacturerMinKpa,
+    baseline.front.safetyMaxKpa ?? baseline.front.manufacturerMaxKpa,
     matching,
     'front',
   )
   const rear = personaliseWheel(
     baseline.rear.clampedKpa,
-    baseline.rear.manufacturerMinKpa,
-    baseline.rear.manufacturerMaxKpa,
+    baseline.rear.safetyMinKpa ?? baseline.rear.manufacturerMinKpa,
+    baseline.rear.safetyMaxKpa ?? baseline.rear.manufacturerMaxKpa,
     matching,
     'rear',
   )

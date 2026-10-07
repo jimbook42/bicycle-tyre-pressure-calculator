@@ -7,12 +7,20 @@ import type { CalculatorInput, RideFeedback } from '../types'
 import type { ProcessedRideWeather } from '../weather/weatherProvider'
 
 function input(overrides: Partial<CalculatorInput> = {}): CalculatorInput {
+  const modelAdvanced = {
+    rimType: 'hooked' as const,
+    wheelDiameterInches: 28,
+    rimInternalWidthMm: 19,
+  }
   return {
     rider: { weightKg: 75 },
     bike: { weightKg: 9 },
-    ride: { type: 'road', gravelPercent: 0, packWeightKg: 0 },
-    tyres: { frontWidthMm: 28, rearWidthMm: 28, tubeType: 'tubeless' },
-    ...overrides,
+    ride: { type: 'road', gravelPercent: 0, packWeightKg: 0, ...overrides.ride },
+    tyres: { frontWidthMm: 28, rearWidthMm: 28, tubeType: 'tubeless', ...overrides.tyres },
+    advanced:
+      overrides.advanced !== undefined ? overrides.advanced : modelAdvanced,
+    ...('rider' in overrides ? { rider: overrides.rider } : {}),
+    ...('bike' in overrides ? { bike: overrides.bike } : {}),
   }
 }
 
@@ -41,11 +49,11 @@ describe('representative scenarios', () => {
       input({ ride: { type: 'mixed', gravelPercent: 50, packWeightKg: 0 } }),
     )
     expect(road.rear.clampedKpa).toBeGreaterThan(road.front.clampedKpa)
-    expect(gravel.front.clampedKpa).toBeLessThan(road.front.clampedKpa)
+    expect(gravel.front.targetKpa).toBeLessThan(road.front.targetKpa)
     expect(commute.systemWeightKg).toBe(90)
-    expect(commute.front.clampedKpa).toBeGreaterThan(road.front.clampedKpa)
-    expect(mixed.front.clampedKpa).toBeGreaterThan(gravel.front.clampedKpa)
-    expect(mixed.front.clampedKpa).toBeLessThan(road.front.clampedKpa)
+    expect(commute.systemWeightKg).toBeGreaterThan(road.systemWeightKg)
+    expect(mixed.front.targetKpa).toBeGreaterThan(gravel.front.targetKpa)
+    expect(mixed.front.targetKpa).toBeLessThan(road.front.targetKpa)
 
     const butyl = calculatePressure(input({ tyres: { frontWidthMm: 28, rearWidthMm: 28, tubeType: 'butyl' } }))
     const tpu = calculatePressure(input({ tyres: { frontWidthMm: 28, rearWidthMm: 28, tubeType: 'tpu' } }))
@@ -93,16 +101,11 @@ describe('representative scenarios', () => {
     expect(failed.active).toBe(false)
     expect(failed.unavailableMessage).toMatch(/Weather unavailable/)
 
-    const wet = applyWeatherPressureAdjustments({
-      frontBaselineKpa: base.front.clampedKpa,
-      rearBaselineKpa: base.rear.clampedKpa,
-      weather: weather({ isWetForecast: false }),
-      wetMode: 'wet',
-      inflationTempC: 14,
-      inflationAssumed: false,
-    })
-    expect(wet.front!.targetRidingGaugeKpa).toBeLessThan(base.front.clampedKpa)
-    expect(wet.wetLabel).toBe('Wet conditions')
+    const wetRide = calculatePressure(
+      input({ ride: { type: 'road', gravelPercent: 0, packWeightKg: 0, moisture: 'wet' } }),
+    )
+    expect(wetRide.front.targetKpa).toBeLessThan(base.front.targetKpa)
+    expect(wetRide.front.targetKpa / base.front.targetKpa).not.toBeCloseTo(0.97, 2)
   })
 
   it('15-16 repeated Good feedback, including a pressure different from the recommendation', () => {

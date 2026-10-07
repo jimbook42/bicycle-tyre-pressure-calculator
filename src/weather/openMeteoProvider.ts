@@ -4,12 +4,13 @@ import {
   currentAmbientFromHourly,
   dominantWeatherCodeDuringRide,
   durationWeightedRideTemperatureC,
-  forecastWetDuringRide,
+  forecastMoistureDuringRide,
   resolveRideWindow,
   temperatureRangeOverRideC,
 } from './forecastProcessor'
 import type {
   FetchLike,
+  ForecastBundle,
   HourlyForecastPoint,
   ProcessedRideWeather,
   RideTimingRequest,
@@ -21,7 +22,7 @@ const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast'
 
 interface CacheEntry {
   expiresAt: number
-  hourly: HourlyForecastPoint[]
+  bundle: ForecastBundle
 }
 
 function utcDate(date: Date): string {
@@ -52,7 +53,7 @@ export function createOpenMeteoProvider(
       const key = cacheKey(latitude, longitude, startDate, endDate)
       const cached = cache.get(key)
       if (cached && cached.expiresAt > Date.now()) {
-        return cached.hourly
+        return cached.bundle
       }
 
       const params = new URLSearchParams({
@@ -67,6 +68,7 @@ export function createOpenMeteoProvider(
       const response = await fetchImpl(`${FORECAST_URL}?${params.toString()}`)
       if (!response.ok) throw new Error('Forecast request failed')
       const data = (await response.json()) as {
+        elevation?: number
         hourly?: {
         time?: Array<string | number>
           temperature_2m?: number[]
@@ -81,8 +83,10 @@ export function createOpenMeteoProvider(
         precipitationMm: data.hourly?.precipitation?.[index] ?? 0,
         weatherCode: data.hourly?.weather_code?.[index] ?? 0,
       }))
-      cache.set(key, { hourly, expiresAt: Date.now() + FORECAST_CACHE_TTL_MS })
-      return hourly
+      const elevationM = Number.isFinite(data.elevation) ? data.elevation : undefined
+      const bundle: ForecastBundle = { hourly, elevationM }
+      cache.set(key, { bundle, expiresAt: Date.now() + FORECAST_CACHE_TTL_MS })
+      return bundle
     },
   }
 }
@@ -95,7 +99,8 @@ export async function buildProcessedRideWeather(
   timing: RideTimingRequest,
 ): Promise<ProcessedRideWeather> {
   const window = resolveRideWindow(timing)
-  const hourly = await provider.fetchHourlyForecast(latitude, longitude, window)
+  const bundle = await provider.fetchHourlyForecast(latitude, longitude, window)
+  const hourly = bundle.hourly
   if (hourly.length === 0) {
     return {
       available: false,
@@ -103,6 +108,7 @@ export async function buildProcessedRideWeather(
       locationLabel,
       rideTempC: 0,
       isWetForecast: false,
+      moisture: 'dry',
       providerId: provider.id,
       attribution: OPEN_METEO_ATTRIBUTION,
       confidence: 'none',
@@ -111,7 +117,7 @@ export async function buildProcessedRideWeather(
   const rideTempC = durationWeightedRideTemperatureC(hourly, window)
   const { minC, maxC } = temperatureRangeOverRideC(hourly, window)
   const currentAmbientTempC = currentAmbientFromHourly(hourly, timing.referenceNow)
-  const isWetForecast = forecastWetDuringRide(hourly, window)
+  const moisture = forecastMoistureDuringRide(hourly, window)
   const dominantWeatherCode = dominantWeatherCodeDuringRide(hourly, window)
   return {
     available: true,
@@ -120,7 +126,9 @@ export async function buildProcessedRideWeather(
     windowTempMinC: minC,
     windowTempMaxC: maxC,
     currentAmbientTempC,
-    isWetForecast,
+    isWetForecast: moisture === 'wet',
+    moisture,
+    elevationM: bundle.elevationM,
     dominantWeatherCode,
     providerId: provider.id,
     attribution: OPEN_METEO_ATTRIBUTION,

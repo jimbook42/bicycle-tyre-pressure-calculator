@@ -1,3 +1,4 @@
+import { APP_VERSION_LABEL } from '../data/appVersion'
 import { cardOuter, mutedText, pillActive, pillIdle } from '../ui/softUi'
 
 export type AppTab = 'calculate' | 'bikes' | 'rider' | 'feedback'
@@ -32,7 +33,7 @@ export function BottomTabs({ active, onChange }: BottomTabsProps) {
           </button>
         ))}
       </div>
-      <p className={`text-center text-[10px] leading-none tracking-wide ${mutedText}`}>v1.0</p>
+      <p className={`text-center text-[10px] leading-none tracking-wide ${mutedText}`}>{APP_VERSION_LABEL}</p>
     </nav>
   )
 }

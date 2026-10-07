@@ -13,6 +13,14 @@ export function wetAdjustmentApplies(isWetForecast: boolean, wetMode: WetMode): 
   return isWetForecast
 }
 
+function gripLine(settings: WeatherSettingsStored, processed: ProcessedRideWeather): string {
+  if (settings.wetMode === 'dry') return 'Wet grip adjustment: not applied'
+  if (settings.wetMode === 'wet') return 'Wet grip adjustment: applied'
+  if (processed.moisture === 'damp') return 'Damp grip adjustment: applied'
+  if (processed.moisture === 'wet' || processed.isWetForecast) return 'Wet grip adjustment: applied'
+  return 'Wet grip adjustment: not applied'
+}
+
 export function describeRidePlan(weather: WeatherSettingsStored): string {
   const minutes = durationMinutesFromSettings(weather)
   const duration =
@@ -73,19 +81,17 @@ export function formatCompactWeatherSummary(
     return { temperatureCondition: '—', timingLine }
   }
   const temp = formatTemperatureWindow(processed, temperatureUnit)
-  const wet = wetAdjustmentApplies(processed.isWetForecast, settings.wetMode)
   const condition =
     settings.wetMode === 'dry'
       ? 'Dry'
       : settings.wetMode === 'wet'
         ? 'Wet'
-        : processed.isWetForecast
-          ? 'Rain possible'
-          : 'Dry'
-  const tempCond = wet && settings.wetMode === 'auto' && processed.isWetForecast
-    ? `${temp} · ${condition}`
-    : `${temp} · ${wet ? 'Wet' : 'Dry'}`
-  return { temperatureCondition: tempCond, timingLine }
+        : processed.moisture === 'damp'
+          ? 'Damp'
+          : processed.isWetForecast
+            ? 'Rain possible'
+            : 'Dry'
+  return { temperatureCondition: `${temp} · ${condition}`, timingLine }
 }
 
 export function buildWeatherPreview(
@@ -112,7 +118,6 @@ export function buildWeatherPreview(
       unavailable: true,
     }
   }
-  const wet = wetAdjustmentApplies(processed.isWetForecast, settings.wetMode)
   const nowBit =
     settings.timingMode === 'now' && processed.currentAmbientTempC !== undefined
       ? `Now ${formatTemperatureC(processed.currentAmbientTempC, temperatureUnit)} • `
@@ -131,8 +136,12 @@ export function buildWeatherPreview(
     plan,
     weatherIconKind: weatherIconKindForCode(code),
     temperatureLine: `${nowBit}${formatTemperatureWindow(processed, temperatureUnit)}`,
-    rainLine: processed.isWetForecast ? 'Rain possible' : 'No rain in this ride window',
-    wetLine: wet ? 'Wet adjustment: Applied' : 'Wet adjustment: Not applied',
+    rainLine: processed.moisture === 'damp'
+      ? 'Damp conditions'
+      : processed.isWetForecast
+        ? 'Rain possible'
+        : 'No rain in this ride window',
+    wetLine: gripLine(settings, processed),
     compactTempCondition: temperatureCondition,
     compactTimingLine,
     unavailable: false,

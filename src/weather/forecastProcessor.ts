@@ -1,9 +1,10 @@
-import { WET_PRECIP_THRESHOLD_MM } from '../data/weatherConstants'
+import { DAMP_PRECIP_THRESHOLD_MM, WET_PRECIP_THRESHOLD_MM } from '../data/weatherConstants'
+import type { MoistureClass } from '../types'
 import type { HourlyForecastPoint, RideTimingMode, RideTimingRequest, RideWindow } from './weatherProvider'
 
-const RAIN_WEATHER_CODES = new Set([
-  51, 52, 53, 54, 55, 56, 57, 61, 63, 65, 66, 67, 71, 73, 75, 77, 80, 81, 82, 85, 86, 95,
-  96, 99,
+const DAMP_WEATHER_CODES = new Set([45, 48, 51, 53, 55, 56, 57])
+const WET_WEATHER_CODES = new Set([
+  61, 63, 65, 66, 67, 71, 73, 75, 77, 80, 81, 82, 85, 86, 95, 96, 99,
 ])
 
 function localDateString(date: Date): string {
@@ -154,19 +155,39 @@ export function dominantWeatherCodeDuringRide(
   return interpolateAt(hourly, window.start).weatherCode
 }
 
+function sliceMoisture(sample: HourlyForecastPoint): MoistureClass {
+  if (sample.precipitationMm >= WET_PRECIP_THRESHOLD_MM || WET_WEATHER_CODES.has(sample.weatherCode)) {
+    return 'wet'
+  }
+  if (sample.precipitationMm >= DAMP_PRECIP_THRESHOLD_MM || DAMP_WEATHER_CODES.has(sample.weatherCode)) {
+    return 'damp'
+  }
+  return 'dry'
+}
+
+/**
+ * Worst moisture class over the ride window: wet beats damp, damp beats dry.
+ */
+export function forecastMoistureDuringRide(
+  hourly: HourlyForecastPoint[],
+  window: RideWindow,
+): MoistureClass {
+  const sliceMs = 15 * 60_000
+  let damp = false
+  for (let t = window.start.getTime(); t < window.end.getTime(); t += sliceMs) {
+    const mid = new Date((t + Math.min(window.end.getTime(), t + sliceMs)) / 2)
+    const moisture = sliceMoisture(interpolateAt(hourly, mid))
+    if (moisture === 'wet') return 'wet'
+    if (moisture === 'damp') damp = true
+  }
+  return damp ? 'damp' : 'dry'
+}
+
 export function forecastWetDuringRide(
   hourly: HourlyForecastPoint[],
   window: RideWindow,
 ): boolean {
-  const sliceMinutes = 15
-  const sliceMs = sliceMinutes * 60_000
-  for (let t = window.start.getTime(); t < window.end.getTime(); t += sliceMs) {
-    const mid = new Date((t + Math.min(window.end.getTime(), t + sliceMs)) / 2)
-    const sample = interpolateAt(hourly, mid)
-    if (sample.precipitationMm >= WET_PRECIP_THRESHOLD_MM) return true
-    if (RAIN_WEATHER_CODES.has(sample.weatherCode)) return true
-  }
-  return false
+  return forecastMoistureDuringRide(hourly, window) === 'wet'
 }
 
 export function currentAmbientFromHourly(

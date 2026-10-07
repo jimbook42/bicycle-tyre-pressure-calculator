@@ -123,12 +123,114 @@ describe('localStore', () => {
     expect(normalized.weather.enabled).toBe(true)
   })
 
+  it('migrates a version 2 save onto schema 3 without dropping history', () => {
+    const legacy = {
+      version: 2,
+      riderWeightKg: '82',
+      bikes: [
+        {
+          id: 'keep-me',
+          name: 'Commute',
+          weightKg: '12',
+          frontWidthMm: '32',
+          rearWidthMm: '32',
+          tubeType: 'butyl',
+          advanced: { frontMinPsi: '40', rimType: 'hooked' },
+        },
+      ],
+      selectedBikeId: 'keep-me',
+      feedback: [
+        {
+          id: 'fb-1',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          bikeId: 'keep-me',
+          bikeName: 'Commute',
+          setupKey: 'keep-me|road|0|32|32|0|0|butyl|90',
+          rideType: 'road',
+          gravelPercent: 0,
+          systemWeightKg: 90,
+          tubeType: 'butyl',
+          frontWidthMm: 32,
+          rearWidthMm: 32,
+          baselineFrontKpa: 400,
+          baselineRearKpa: 500,
+          actualFrontKpa: 390,
+          actualRearKpa: 480,
+          result: 'good',
+          notes: 'fine',
+        },
+      ],
+      rideHistory: [
+        {
+          id: 'ride-1',
+          calculatedAt: '2026-01-01T00:00:00.000Z',
+          bikeId: 'keep-me',
+          bikeName: 'Commute',
+          setupKey: 'keep-me|road|0|32|32|0|0|butyl|90',
+          rideType: 'road',
+          recommendedFrontKpa: 400,
+          recommendedRearKpa: 500,
+        },
+      ],
+    }
+    storage.setItem(STORAGE_KEY_V2, JSON.stringify(legacy))
+    const loaded = loadAppPersistence(storage)
+    expect(loaded.version).toBe(3)
+    expect(loaded.riderWeightKg).toBe('82')
+    expect(loaded.bikes[0].id).toBe('keep-me')
+    expect(loaded.bikes[0].tubeType).toBe('butyl')
+    expect(loaded.bikes[0].tyreCategory).toBe('')
+    expect(loaded.bikes[0].casing).toBe('')
+    expect(loaded.bikes[0].tyreModel).toBe('')
+    expect(loaded.bikes[0].advanced.frontMinPsi).toBe('40')
+    expect(loaded.expectedSpeedKmh).toBe('')
+    expect(loaded.feedback).toHaveLength(1)
+    expect(loaded.feedback[0].actualFrontKpa).toBe(390)
+    expect(loaded.rideHistory).toHaveLength(1)
+    expect(loaded.rideHistory[0].recommendedRearKpa).toBe(500)
+  })
+
   it('round-trips persistence through save and load', () => {
     const state = defaultAppPersistence()
     state.riderWeightKg = '81'
+    state.bikes[0].tubeType = 'latex'
+    state.bikes[0].tyreCategory = 'gravel'
+    state.bikes[0].casing = 'race'
+    state.bikes[0].tyreModel = 'Cinturato'
+    state.expectedSpeedKmh = '27'
+    state.feedback = [
+      {
+        id: 'fb',
+        createdAt: '2026-02-01T00:00:00.000Z',
+        bikeId: state.bikes[0].id,
+        bikeName: 'My bike',
+        setupKey: 'k',
+        rideType: 'road',
+        gravelPercent: 0,
+        systemWeightKg: 84,
+        tubeType: 'latex',
+        frontWidthMm: 28,
+        rearWidthMm: 28,
+        baselineFrontKpa: 400,
+        baselineRearKpa: 500,
+        actualFrontKpa: 410,
+        actualRearKpa: 490,
+        result: 'good',
+        frontFeel: 'too_soft',
+        rearFeel: 'too_hard',
+        notes: '',
+      },
+    ]
     saveAppPersistence(state, storage)
     const loaded = loadAppPersistence(storage)
     expect(loaded.riderWeightKg).toBe('81')
-    expect(loaded.bikes.length).toBe(state.bikes.length)
+    expect(loaded.version).toBe(3)
+    expect(loaded.expectedSpeedKmh).toBe('27')
+    expect(loaded.bikes[0].tubeType).toBe('latex')
+    expect(loaded.bikes[0].tyreCategory).toBe('gravel')
+    expect(loaded.bikes[0].casing).toBe('race')
+    expect(loaded.bikes[0].tyreModel).toBe('Cinturato')
+    expect(loaded.feedback[0].frontFeel).toBe('too_soft')
+    expect(loaded.feedback[0].rearFeel).toBe('too_hard')
   })
 })

@@ -9,10 +9,15 @@ import {
   BERTO_REGRESSION_OFFSET_PSI,
   BERTO_WIDTH_MAX_MM,
   BERTO_WIDTH_MIN_MM,
+  BERTO_WIDTH_SOFT_MAX_MM,
 } from '../data/v21ModelConstants'
 
 /** International avoirdupois pound. 1 lb = 0.45359237 kg. */
 export const LB_PER_KG = 1 / 0.45359237
+
+/** Informational width note; not paired with the strong extrapolation suffix. */
+export const WIDTH_MILD_EXTRAPOLATION_MESSAGE =
+  'Tyre width is slightly beyond the underlying chart’s measured range (about 19–37 mm). The baseline uses a curve fit, so this result involves a small extrapolation.'
 
 export interface BertoBaseline {
   /** Gauge pressure from the Adams regression, PSI. */
@@ -37,15 +42,20 @@ export function bertoRegressionPsi(loadKg: number, widthMm: number): number {
   )
 }
 
+function widthExtrapolationReason(widthMm: number): string | null {
+  if (widthMm >= BERTO_WIDTH_MIN_MM && widthMm <= BERTO_WIDTH_MAX_MM) return null
+  if (widthMm > BERTO_WIDTH_MAX_MM && widthMm <= BERTO_WIDTH_SOFT_MAX_MM) {
+    return WIDTH_MILD_EXTRAPOLATION_MESSAGE
+  }
+  return `${widthMm.toFixed(1)} mm is outside the chart’s measured widths (about ${BERTO_WIDTH_MIN_MM}–${BERTO_WIDTH_MAX_MM} mm)`
+}
+
 export function bertoBaseline(loadKg: number, widthMm: number): BertoBaseline {
   const loadLbf = loadKg * LB_PER_KG
   const psi = bertoRegressionPsi(loadKg, widthMm)
   const reasons: string[] = []
-  if (widthMm < BERTO_WIDTH_MIN_MM || widthMm > BERTO_WIDTH_MAX_MM) {
-    reasons.push(
-      `${widthMm.toFixed(1)} mm is outside the chart’s measured widths (about ${BERTO_WIDTH_MIN_MM}–${BERTO_WIDTH_MAX_MM} mm)`,
-    )
-  }
+  const widthReason = widthExtrapolationReason(widthMm)
+  if (widthReason) reasons.push(widthReason)
   if (loadLbf < BERTO_LOAD_MIN_LBF || loadLbf > BERTO_LOAD_MAX_LBF) {
     reasons.push(
       `${loadLbf.toFixed(0)} lb is outside the chart’s measured wheel loads (about ${BERTO_LOAD_MIN_LBF}–${BERTO_LOAD_MAX_LBF} lb)`,

@@ -8,6 +8,7 @@ import {
   SURFACE_FACTOR_VERY_ROUGH_GRAVEL,
   WET_PRESSURE_FACTOR,
 } from '../data/v21ModelConstants'
+import { asMixedGravelType, asMixedRoadType } from '../data/mixedTerrain'
 import type { MoistureClass, RideType } from '../types'
 
 export interface SurfaceCondition {
@@ -16,19 +17,18 @@ export interface SurfaceCondition {
   family: 'road' | 'gravel' | 'mixed'
 }
 
+export interface MixedTerrainSelection {
+  roadType: RideType
+  gravelType: RideType
+}
+
 function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value))
 }
 
-/**
- * Bounded surface adjustment on the Berto baseline.
- * Mixed rides weight normal road and typical gravel by the gravel percentage.
- * They are not treated as pure gravel, and pressures are not blended through IRI.
- * Stored "commute" keeps its own ride type (so older notes still match) and uses
- * the rough-road factor, because Version 2 treated commute as rougher than the
- * road default and there is no separate commute study.
- */
-export function surfaceCondition(rideType: RideType, gravelPercent: number): SurfaceCondition {
+function pureSurfaceCondition(rideType: RideType): Omit<SurfaceCondition, 'family'> & {
+  family: 'road' | 'gravel'
+} {
   switch (rideType) {
     case 'road-smooth':
       return { factor: SURFACE_FACTOR_SMOOTH_ROAD, label: 'Smooth road', family: 'road' }
@@ -58,23 +58,45 @@ export function surfaceCondition(rideType: RideType, gravelPercent: number): Sur
         label: 'Very rough / chunky gravel',
         family: 'gravel',
       }
-    case 'mixed': {
-      const gravelShare = clamp01(gravelPercent / 100)
-      const factor =
-        (1 - gravelShare) * SURFACE_FACTOR_NORMAL_ROAD +
-        gravelShare * SURFACE_FACTOR_TYPICAL_GRAVEL
-      const percent = Math.round(gravelShare * 100)
-      return {
-        factor,
-        label: `Mixed, ${percent}% typical gravel`,
-        family: 'mixed',
-      }
-    }
+    case 'mixed':
+      return pureSurfaceCondition('road')
     default: {
       const _exhaustive: never = rideType
       return _exhaustive
     }
   }
+}
+
+/**
+ * Bounded surface adjustment on the Berto baseline.
+ * Mixed rides blend two explicitly selected road and gravel terrain factors by gravel
+ * percentage. They are not treated as pure gravel, and pressures are not blended through IRI.
+ * Stored "commute" keeps its own ride type (so older notes still match) and uses
+ * the rough-road factor, because Version 2 treated commute as rougher than the
+ * road default and there is no separate commute study.
+ */
+export function surfaceCondition(
+  rideType: RideType,
+  gravelPercent: number,
+  mixedTerrain?: MixedTerrainSelection,
+): SurfaceCondition {
+  if (rideType === 'mixed') {
+    const roadType = asMixedRoadType(mixedTerrain?.roadType)
+    const gravelType = asMixedGravelType(mixedTerrain?.gravelType)
+    const road = pureSurfaceCondition(roadType)
+    const gravel = pureSurfaceCondition(gravelType)
+    const gravelShare = clamp01(gravelPercent / 100)
+    const roadShare = 1 - gravelShare
+    const factor = roadShare * road.factor + gravelShare * gravel.factor
+    const percent = Math.round(gravelShare * 100)
+    const roadPercent = 100 - percent
+    return {
+      factor,
+      label: `Mixed, ${roadPercent}% ${road.label} + ${percent}% ${gravel.label}`,
+      family: 'mixed',
+    }
+  }
+  return pureSurfaceCondition(rideType)
 }
 
 /**

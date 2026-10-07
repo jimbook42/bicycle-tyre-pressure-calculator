@@ -75,6 +75,82 @@ describe('pressureEngine', () => {
     expect(mixed.rear.targetKpa).toBeCloseTo(gravel.rear.targetKpa, 5)
   })
 
+  it('mixed blends explicitly selected road and gravel terrains', () => {
+    const roadSmooth = calculatePressure(
+      baseInput({ ride: { type: 'road-smooth', gravelPercent: 0, packWeightKg: 0 } }),
+    )
+    const gravelHardpack = calculatePressure(
+      baseInput({ ride: { type: 'gravel-hardpack', gravelPercent: 0, packWeightKg: 0 } }),
+    )
+    const mixed = calculatePressure(
+      baseInput({
+        ride: {
+          type: 'mixed',
+          gravelPercent: 30,
+          mixedRoadType: 'road-smooth',
+          mixedGravelType: 'gravel-hardpack',
+          packWeightKg: 0,
+        },
+      }),
+    )
+    expect(mixed.front.targetKpa).toBeGreaterThan(gravelHardpack.front.targetKpa)
+    expect(mixed.front.targetKpa).toBeLessThan(roadSmooth.front.targetKpa)
+
+    const allGravel = calculatePressure(
+      baseInput({
+        ride: {
+          type: 'mixed',
+          gravelPercent: 100,
+          mixedRoadType: 'road-rough',
+          mixedGravelType: 'gravel-hardpack',
+          packWeightKg: 0,
+        },
+      }),
+    )
+    expect(allGravel.front.targetKpa).toBeCloseTo(gravelHardpack.front.targetKpa, 5)
+
+    const allRoad = calculatePressure(
+      baseInput({
+        ride: {
+          type: 'mixed',
+          gravelPercent: 0,
+          mixedRoadType: 'road-rough',
+          mixedGravelType: 'gravel',
+          packWeightKg: 0,
+        },
+      }),
+    )
+    const roadRough = calculatePressure(
+      baseInput({ ride: { type: 'road-rough', gravelPercent: 0, packWeightKg: 0 } }),
+    )
+    expect(allRoad.front.targetKpa).toBeCloseTo(roadRough.front.targetKpa, 5)
+  })
+
+  it('moves monotonically between mixed terrain endpoints as gravel proportion changes', () => {
+    const rideBase = {
+      type: 'mixed' as const,
+      mixedRoadType: 'road' as const,
+      mixedGravelType: 'gravel' as const,
+      packWeightKg: 0,
+    }
+    const low = calculatePressure(baseInput({ ride: { ...rideBase, gravelPercent: 20 } }))
+    const mid = calculatePressure(baseInput({ ride: { ...rideBase, gravelPercent: 50 } }))
+    const high = calculatePressure(baseInput({ ride: { ...rideBase, gravelPercent: 80 } }))
+    expect(mid.front.targetKpa).toBeLessThan(low.front.targetKpa)
+    expect(high.front.targetKpa).toBeLessThan(mid.front.targetKpa)
+  })
+
+  it('keeps QA benchmark road and gravel pressures unchanged', () => {
+    const road = calculatePressure(baseInput())
+    const gravel = calculatePressure(
+      baseInput({ ride: { type: 'gravel', gravelPercent: 0, packWeightKg: 0 } }),
+    )
+    expect(kpaToPsi(road.front.targetKpa)).toBeCloseTo(59, 0)
+    expect(kpaToPsi(road.rear.targetKpa)).toBeCloseTo(74, 0)
+    expect(kpaToPsi(gravel.front.targetKpa)).toBeCloseTo(56, 0)
+    expect(kpaToPsi(gravel.rear.targetKpa)).toBeCloseTo(70, 0)
+  })
+
   it('commute includes pack weight in system mass', () => {
     const commute = baseInput({
       ride: { type: 'commute', gravelPercent: 0, packWeightKg: 5 },

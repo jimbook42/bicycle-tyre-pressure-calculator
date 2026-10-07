@@ -37,6 +37,10 @@ export interface Ride {
   type: RideType
   /** 0–100; used when type is mixed */
   gravelPercent: number
+  /** Road terrain when type is mixed; defaults to normal road. */
+  mixedRoadType?: RideType
+  /** Gravel terrain when type is mixed; defaults to typical gravel. */
+  mixedGravelType?: RideType
   packWeightKg: number
   /**
    * Stored for context and older sessions. V2.1 does not change pressure with speed.
@@ -262,6 +266,8 @@ export interface AppPersistence {
   selectedBikeId: string
   rideType: RideType
   gravelPercent: string
+  mixedRoadType: RideType
+  mixedGravelType: RideType
   packWeightKg: string
   /** Blank means the reference speed is used. */
   expectedSpeedKmh: string

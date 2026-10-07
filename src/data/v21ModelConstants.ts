@@ -17,7 +17,10 @@
  * regression is an extrapolation. [L]
  */
 export const BERTO_WIDTH_MIN_MM = 19
+/** Upper bound of the chart’s measured widths; wider tyres may still use a mild warning band. */
 export const BERTO_WIDTH_MAX_MM = 37
+/** Widths above the chart maximum but within this band get an informational extrapolation note. */
+export const BERTO_WIDTH_SOFT_MAX_MM = 40
 export const BERTO_LOAD_MIN_LBF = 20
 export const BERTO_LOAD_MAX_LBF = 220
 export const BERTO_PRESSURE_MIN_PSI = 40

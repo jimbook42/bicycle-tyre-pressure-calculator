@@ -58,9 +58,9 @@ That is a regression, not Berto’s equation. The interface says so. Checked aga
 
 Each wheel uses its own width. At an even load split, each wheel is given half the system mass and the regression above. That 50/50 result is the Version 2.1 result for the same mass and width. The regression has an intercept, so even a direct per-wheel calculation is not forced to the load ratio. Version 2.2 does not feed the static wheel load straight into this regression unless the static split is already even. See the next section.
 
-Measured mounted width replaces labelled width when the rider supplies it. Outside about 19–37 mm, 20–220 lb, or 40–160 PSI, the result is marked as an extrapolation and is still shown.
+Measured mounted width replaces labelled width when the rider supplies it. About **19–37 mm** is the approximate source-data width range from Berto’s tests, not a hard physical validity boundary. Within that band there is no width extrapolation note. Slightly wider tyres (above 37 mm up to about 40 mm) get a mild informational note that the curve fit is a small extrapolation. Wider than that, or narrower than 19 mm, get a stronger outside-range note. Load or pressure outside the chart span is still flagged separately. None of these notes change the calculated pressure.
 
-A 37.5 mm tyre at a 100 lb wheel load is the audit benchmark. It sits just outside the chart’s widest measured tyre, in the same pressure region as the published 37 mm example (a bit under 50 PSI from the regression), and it is not the old Renart 15% deflection pressure.
+A 37.5 mm tyre at a 100 lb wheel load is the audit benchmark. It sits just above the chart’s widest measured tyre, in the same pressure region as the published 37 mm example (a bit under 50 PSI from the regression), and it is not the old Renart 15% deflection pressure.
 
 ## Wheel load [P]
 
@@ -126,7 +126,7 @@ The percentages below are a calibration. Nothing in those papers publishes them.
 
 A saved **commute** ride keeps that ride type, so older notes still match. It uses the rough-road factor, because Version 2 treated commute as rougher than the road default and there is no separate commute study.
 
-A **mixed** ride weights the normal-road factor and the typical-gravel factor by the gravel percentage. At 0% it matches normal road. At 100% it matches typical gravel. It is not treated as pure gravel. Because both factors multiply the same baseline, that weight is also a weight of the two pressures. That is the condition blend. It is not the old root-mean-square IRI path.
+A **mixed** ride blends two explicitly chosen terrain factors — one road condition (smooth, normal, or rough) and one gravel condition (hardpack through very rough) — by the gravel percentage. At 0% gravel it matches the selected road terrain. At 100% gravel it matches the selected gravel terrain. Because both factors multiply the same baseline, that weight is also a weight of the two pressures. That is the condition blend. It is not the old root-mean-square IRI path.
 
 ## Wet weather [A], direction from [L]
 

@@ -13,6 +13,7 @@ import type {
   TyreCategory,
   WeatherSettingsStored,
 } from '../types'
+import { asMixedGravelType, asMixedRoadType } from '../data/mixedTerrain'
 import { isRideType } from '../data/rideTypes'
 
 const STORAGE_KEY_V1 = 'bicycle-tyre-pressure-calculator:v1'
@@ -110,7 +111,9 @@ export function defaultAppPersistence(): AppPersistence {
     bikes: [bike],
     selectedBikeId: bike.id,
     rideType: 'road',
-    gravelPercent: '30',
+    gravelPercent: '50',
+    mixedRoadType: 'road',
+    mixedGravelType: 'gravel',
     packWeightKg: '0',
     expectedSpeedKmh: '',
     pressureUnit: 'psi',
@@ -158,6 +161,8 @@ export function migrateFromV1(legacy: StoredAppStateV1): AppPersistence {
     selectedBikeId: bike.id,
     rideType: asRideType(legacy.rideType, defaults.rideType),
     gravelPercent: legacy.gravelPercent ?? defaults.gravelPercent,
+    mixedRoadType: defaults.mixedRoadType,
+    mixedGravelType: defaults.mixedGravelType,
     packWeightKg: legacy.packWeightKg ?? defaults.packWeightKg,
     expectedSpeedKmh: defaults.expectedSpeedKmh,
     pressureUnit: (legacy.pressureUnit ?? defaults.pressureUnit) as PressureUnit,
@@ -364,6 +369,8 @@ export function normalizeAppPersistence(raw: unknown): AppPersistence {
     rideType: asRideType(data.rideType, defaults.rideType),
     gravelPercent:
       typeof data.gravelPercent === 'string' ? data.gravelPercent : defaults.gravelPercent,
+    mixedRoadType: asMixedRoadType(data.mixedRoadType, defaults.mixedRoadType),
+    mixedGravelType: asMixedGravelType(data.mixedGravelType, defaults.mixedGravelType),
     packWeightKg:
       typeof data.packWeightKg === 'string' ? data.packWeightKg : defaults.packWeightKg,
     expectedSpeedKmh:

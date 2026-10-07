@@ -547,6 +547,8 @@ export default function App() {
             onPackWeight={(v) => updateApp('packWeightKg', v)}
             onRideType={(v) => updateApp('rideType', v)}
             onGravelPercent={(v) => updateApp('gravelPercent', v)}
+            onMixedRoadType={(v) => updateApp('mixedRoadType', v)}
+            onMixedGravelType={(v) => updateApp('mixedGravelType', v)}
             onPatchWeather={patchWeather}
             onUseMyLocation={useMyLocation}
             onSelectPlace={selectPlace}

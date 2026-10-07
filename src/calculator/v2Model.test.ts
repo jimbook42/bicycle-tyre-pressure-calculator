@@ -83,7 +83,7 @@ describe('V2.1 Berto baseline', () => {
     }
   })
 
-  it('places the 37.5 mm, 100 lb audit case in the empirical region rather than the Renart result', () => {
+  it('places the 37.5 mm, 100 lb audit case near the chart edge with a mild width note, not the Renart result', () => {
     const loadKg = 100 / LB_PER_KG
     const bertoPsi = bertoRegressionPsi(loadKg, 37.5)
     expect(bertoPsi).toBeGreaterThan(38)
@@ -207,9 +207,17 @@ describe('V2.1 surface and wet adjustments', () => {
     expect(at('commute').front.targetKpa).toBeCloseTo(rough, 5)
   })
 
-  it('weights a mixed ride between normal road and typical gravel', () => {
+  it('weights a mixed ride between selected road and gravel terrains', () => {
     const mixed = calculatePressure(
-      input({ ride: { type: 'mixed', gravelPercent: 50, packWeightKg: 0 } }),
+      input({
+        ride: {
+          type: 'mixed',
+          gravelPercent: 50,
+          mixedRoadType: 'road',
+          mixedGravelType: 'gravel',
+          packWeightKg: 0,
+        },
+      }),
     )
     const road = at('road').front.targetKpa
     const gravel = at('gravel').front.targetKpa
@@ -219,6 +227,22 @@ describe('V2.1 surface and wet adjustments', () => {
       6,
     )
     expect(formatFactorPercent(1)).toBe('0%')
+
+    const smoothHardpack = calculatePressure(
+      input({
+        ride: {
+          type: 'mixed',
+          gravelPercent: 70,
+          mixedRoadType: 'road-smooth',
+          mixedGravelType: 'gravel-hardpack',
+          packWeightKg: 0,
+        },
+      }),
+    )
+    const smooth = at('road-smooth').front.targetKpa
+    const hardpack = at('gravel-hardpack').front.targetKpa
+    expect(smoothHardpack.front.targetKpa).toBeLessThan(smooth)
+    expect(smoothHardpack.front.targetKpa).toBeGreaterThan(hardpack)
   })
 
   it('lowers wet pressure by the bounded calibration and does not bypass safety limits', () => {

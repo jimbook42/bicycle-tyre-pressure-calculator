@@ -8,7 +8,7 @@ import type {
   RimType,
   WheelPressureDetail,
 } from '../types'
-import { bertoBaseline } from './bertoBaseline'
+import { bertoBaseline, WIDTH_MILD_EXTRAPOLATION_MESSAGE } from './bertoBaseline'
 import { surfaceCondition, wetPressureFactor } from './conditionModel'
 import { effectiveLoadFraction, NEUTRAL_LOAD_FRACTION } from './loadDistribution'
 import { constructionFactors } from './modifiers'
@@ -132,7 +132,10 @@ export function calculatePressure(input: CalculatorInput): PressureResult {
   const warnings: string[] = []
   const notes: string[] = []
   const moisture: MoistureClass = input.ride.moisture ?? 'dry'
-  const surface = surfaceCondition(input.ride.type, input.ride.gravelPercent)
+  const surface = surfaceCondition(input.ride.type, input.ride.gravelPercent, {
+    roadType: input.ride.mixedRoadType ?? 'road',
+    gravelType: input.ride.mixedGravelType ?? 'gravel',
+  })
   const wetFactor = wetPressureFactor(moisture)
   const construction = constructionFactors(
     input.tyres.tubeType,
@@ -196,7 +199,11 @@ export function calculatePressure(input: CalculatorInput): PressureResult {
       )
     }
     for (const reason of wheel.extrapolationReasons) {
-      warnings.push(`${label}: ${reason}. The baseline is an extrapolated curve fit.`)
+      if (reason === WIDTH_MILD_EXTRAPOLATION_MESSAGE) {
+        warnings.push(`${label}: ${reason}`)
+      } else {
+        warnings.push(`${label}: ${reason}. The baseline is an extrapolated curve fit.`)
+      }
     }
   }
   if (construction.unknownTube) {
@@ -209,7 +216,7 @@ export function calculatePressure(input: CalculatorInput): PressureResult {
   }
   if (input.ride.type === 'mixed') {
     notes.push(
-      `Mixed surface weights the normal-road and typical-gravel adjustments by ${input.ride.gravelPercent}% gravel. It is not treated as pure gravel.`,
+      `Mixed surface blends the selected road and gravel terrain adjustments by ${input.ride.gravelPercent}% gravel (${surface.label}).`,
     )
   }
   if (input.ride.type === 'commute') {

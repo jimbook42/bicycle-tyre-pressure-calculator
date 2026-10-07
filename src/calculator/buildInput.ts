@@ -1,4 +1,5 @@
 import { psiToKpa } from './units'
+import { asMixedGravelType, asMixedRoadType } from '../data/mixedTerrain'
 import type { AppPersistence, BikeProfile, CalculatorInput } from '../types'
 import { getSelectedBike } from '../storage/localStore'
 
@@ -46,6 +47,8 @@ export function buildCalculatorInput(
     ride: {
       type: state.rideType,
       gravelPercent: Math.min(100, Math.max(0, parseNum(state.gravelPercent, 0))),
+      mixedRoadType: asMixedRoadType(state.mixedRoadType),
+      mixedGravelType: asMixedGravelType(state.mixedGravelType),
       packWeightKg,
       expectedSpeedKmh: expectedSpeed,
     },

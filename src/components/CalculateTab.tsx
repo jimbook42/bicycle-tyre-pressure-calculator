@@ -39,6 +39,13 @@ const GRAVEL_CONDITIONS: { value: RideType; label: string }[] = [
   { value: 'gravel-very-rough', label: 'Very rough' },
 ]
 
+const MIXED_GRAVEL_CONDITIONS: { value: RideType; label: string }[] = [
+  { value: 'gravel-hardpack', label: 'Smooth / hardpack' },
+  { value: 'gravel', label: 'Typical' },
+  { value: 'gravel-rough', label: 'Rough' },
+  { value: 'gravel-very-rough', label: 'Very rough / chunky' },
+]
+
 function surfaceFamily(type: RideType): 'road' | 'gravel' | 'mixed' {
   if (type === 'mixed') return 'mixed'
   if (
@@ -73,6 +80,8 @@ interface CalculateTabProps {
   onPackWeight: (v: string) => void
   onRideType: (v: RideType) => void
   onGravelPercent: (v: string) => void
+  onMixedRoadType: (v: RideType) => void
+  onMixedGravelType: (v: RideType) => void
   onPatchWeather: (patch: Partial<WeatherSettingsStored>) => void
   onUseMyLocation: () => void
   onSelectPlace: (place: GeoPlace) => void
@@ -100,6 +109,8 @@ export function CalculateTab({
   onPackWeight,
   onRideType,
   onGravelPercent,
+  onMixedRoadType,
+  onMixedGravelType,
   onPatchWeather,
   onUseMyLocation,
   onSelectPlace,
@@ -161,6 +172,9 @@ export function CalculateTab({
                 }`}
                 onClick={() => {
                   if (opt.value === 'mixed') {
+                    if (state.rideType !== 'mixed') {
+                      onGravelPercent('50')
+                    }
                     onRideType('mixed')
                     return
                   }
@@ -230,28 +244,64 @@ export function CalculateTab({
         )}
 
         {state.rideType === 'mixed' && (
-          <label className="block text-sm">
-            Gravel portion: {Math.min(100, Math.max(0, parseNum(state.gravelPercent, 0)))}%
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={1}
-              className="soft-range mt-2 w-full"
-              value={Math.min(100, Math.max(0, parseNum(state.gravelPercent, 0)))}
-              onChange={(e) => onGravelPercent(e.target.value)}
-            />
-            <input
-              className={`${fieldClassName} mt-2`}
-              inputMode="numeric"
-              value={state.gravelPercent}
-              onChange={(e) => onGravelPercent(e.target.value)}
-            />
-            <span className={`mt-1 block text-xs ${mutedText}`}>
-              Blends the normal-road and typical-gravel adjustments. Road portion:{' '}
-              {Math.max(0, 100 - parseNum(state.gravelPercent, 0))}%
-            </span>
-          </label>
+          <>
+            <div>
+              <p className="text-sm font-medium">Road terrain</p>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {ROAD_CONDITIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={`px-2 py-2 text-xs sm:text-sm ${
+                      state.mixedRoadType === opt.value ? pillActive : pillIdle
+                    }`}
+                    onClick={() => onMixedRoadType(opt.value)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-medium">Gravel terrain</p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {MIXED_GRAVEL_CONDITIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={`px-2 py-2 text-xs sm:text-sm ${
+                      state.mixedGravelType === opt.value ? pillActive : pillIdle
+                    }`}
+                    onClick={() => onMixedGravelType(opt.value)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <label className="block text-sm">
+              Gravel proportion: {Math.min(100, Math.max(0, parseNum(state.gravelPercent, 50)))}%
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={1}
+                className="soft-range mt-2 w-full"
+                value={Math.min(100, Math.max(0, parseNum(state.gravelPercent, 50)))}
+                onChange={(e) => onGravelPercent(e.target.value)}
+              />
+              <input
+                className={`${fieldClassName} mt-2`}
+                inputMode="numeric"
+                value={state.gravelPercent}
+                onChange={(e) => onGravelPercent(e.target.value)}
+              />
+              <span className={`mt-1 block text-xs ${mutedText}`}>
+                Blends the selected road and gravel terrain adjustments. Road portion:{' '}
+                {Math.max(0, 100 - parseNum(state.gravelPercent, 50))}%
+              </span>
+            </label>
+          </>
         )}
 
         <label className="block text-sm">

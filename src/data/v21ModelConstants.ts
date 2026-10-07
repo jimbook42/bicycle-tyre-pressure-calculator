@@ -1,8 +1,9 @@
 /**
- * V2.1 condition-model constants.
+ * V2.1 condition-model constants, still used by V2.2.
  *
  * The production baseline is the Dave Adams regression of Frank Berto’s chart,
- * in `bertoBaseline.ts`. These factors are applied after that baseline.
+ * in `bertoBaseline.ts`. Surface and wet factors are applied after the
+ * front/rear load response.
  *
  * Tags match SCIENCE.md:
  * - [P] taken from a cited source
@@ -76,3 +77,20 @@ export const WET_PRESSURE_FACTOR = 0.96
 
 /** Largest wet reduction. Dry is 0. [A] */
 export const WET_FACTOR_BOUND = 0.04
+
+/**
+ * Fraction of the static load imbalance passed into the empirical baseline. [A]
+ *
+ * 1 would reproduce V2.1: each wheel’s Berto load is its static load.
+ * 0 would ignore the rider’s split and use equal loads.
+ * 0.5 weights those two calculations equally:
+ *   effective = 0.5 + 0.5 × (static − 0.5)
+ *
+ * No paper publishes a consumer front/rear pressure exponent. Braking research
+ * shows deceleration moves load forward, and Dell’Orto 2023 shows the useful
+ * pressure depends on vertical load without giving a split formula. SILCA’s
+ * published calculator practice rejects a full 40/60 pressure split. An equal
+ * blend is the least-assumptive gain between “use the static split” and
+ * “ignore it”. It is not a fit to SILCA, SRAM, or another calculator.
+ */
+export const LOAD_SPLIT_RESPONSE = 0.5

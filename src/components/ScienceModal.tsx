@@ -24,7 +24,7 @@ export function ScienceModal({ open, onClose }: ScienceModalProps) {
         </h2>
         <div className={`mt-3 space-y-3 text-[13px] leading-relaxed ${mutedText}`}>
           <p>
-            Version 2.1 gives an evidence-backed starting pressure for this rider, tyre, load, and
+            Version 2.2 gives an evidence-backed starting pressure for this rider, tyre, load, and
             ride. It is not a scientifically proven optimum, and it is not a guarantee of the
             fastest or safest pressure.
           </p>
@@ -35,8 +35,7 @@ export function ScienceModal({ open, onClose }: ScienceModalProps) {
             Frank Berto measured static tyre drop on road tyres, about 19–37 mm wide, at wheel
             loads of about 20–220 lb and pressures of about 40–160 PSI. The chart’s reference
             region is about 15% drop. Per-wheel load and measured width both change that pressure.
-            Front and rear are calculated separately. The app does not force them into the
-            wheel-load ratio.
+            An even front/rear load uses that baseline directly.
           </p>
           <p>
             The number itself comes from Dave Adams’s published curve fit to that chart, not from
@@ -44,6 +43,28 @@ export function ScienceModal({ open, onClose }: ScienceModalProps) {
             used. Outside the measured width, load, or pressure region, the result is flagged as
             an extrapolation. The 15% figure is a reference region from those tests, not proof
             that every ride is fastest at exactly 15% drop.
+          </p>
+          <h3 className="font-semibold text-[#2b2825] dark:text-[#e8e6e1]">
+            Front and rear distribution
+          </h3>
+          <p>
+            The front-wheel load setting is the static share of system weight. It is not a
+            pressure split. A direct 40/60 pressure split treats a parked bike as the only load
+            the tyres will see.
+          </p>
+          <p>
+            Higher confidence: wheel load matters; braking moves load onto the front wheel;
+            laboratory tyre tests do not support a straight pressure-to-load proportion; current
+            empirical calculators do not generally turn a 40/60 static split into a 40/60 pressure
+            split. Lower confidence: the exact shape of that response. No paper publishes a
+            universal front/rear pressure exponent.
+          </p>
+          <p>
+            Version 2.2 therefore keeps the even-split Berto baseline, then moves halfway from
+            that even split toward the static loads. A 50/50 setting stays even. A more
+            rear-biased rider still gets a higher rear pressure, with a smaller gap than Version
+            2.1. Halfway is an engineering calibration, not a published formula. Renart is not
+            used for this step.
           </p>
           <h3 className="font-semibold text-[#2b2825] dark:text-[#e8e6e1]">
             Surface adjustment
@@ -110,7 +131,7 @@ export function ScienceModal({ open, onClose }: ScienceModalProps) {
           <p>
             Renart and Roura-Grabulosa modelled an inflated tyre as a thin membrane and related
             load, deflection, and pressure. Version 2 investigated that relationship as the
-            pressure engine. It is not the production authority in Version 2.1. The paper does not
+            pressure engine. It is not the production authority in Version 2.2. The paper does not
             validate it as a direct modern recommendation for what to pump into a bicycle tyre.
             The code remains only as a scientific reference.
           </p>

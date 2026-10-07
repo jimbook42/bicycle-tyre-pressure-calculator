@@ -2,9 +2,9 @@
 
 Evidence-backed starting front and rear tyre pressures for a planned ride. Client-only Vite + React app.
 
-**Version 2.1 — empirical Berto baseline + evidence-informed condition adjustments + temperature + safety + bounded personalisation.**
+**Version 2.2 — empirical Berto baseline + damped front/rear load response + evidence-informed condition adjustments + temperature + safety + bounded personalisation.**
 
-It does not claim a single optimal pressure. The baseline is a published curve fit to Frank Berto’s 15% tyre-drop chart, not Berto’s own equation. Surface and wet conditions apply small calibrated adjustments around that baseline. Renart does not set the pressure. See `SCIENCE.md` for sources, calibrations, and limits.
+It does not claim a single optimal pressure. The baseline is a published curve fit to Frank Berto’s 15% tyre-drop chart, not Berto’s own equation. An even load split uses that baseline directly. Any other static split moves only halfway from even toward the static wheel loads. That halfway gain is an engineering calibration. Surface and wet conditions apply small calibrated adjustments after it. Renart does not set the pressure. See `SCIENCE.md` for sources, calibrations, and limits.
 
 ## Stack
 
@@ -13,7 +13,7 @@ It does not claim a single optimal pressure. The baseline is a published curve f
 - Vitest for the pressure engine
 - Browser `localStorage` for bikes, rides, and feedback (schema version 3, stored under the existing `bicycle-tyre-pressure-calculator:v2` key)
 
-Version 2.1 does not reset saved bikes, rides, feedback, settings, or personalisation. Older `road` notes still match normal road. Older `gravel` notes still match typical gravel. A saved commute ride keeps its type and uses the rough-road adjustment.
+Version 2.2 does not reset saved bikes, rides, feedback, settings, or personalisation. A blank front-wheel load still means 40%. Older `road` notes still match normal road. Older `gravel` notes still match typical gravel. A saved commute ride keeps its type and uses the rough-road adjustment.
 
 ## Scripts
 
@@ -35,7 +35,7 @@ No environment variables are required.
 
 ## Project layout
 
-- `src/calculator/` — Version 2.1 pressure engine, Berto baseline, condition adjustments, safety, Renart diagnostic
+- `src/calculator/` — Version 2.2 pressure engine, Berto baseline, damped load split, condition adjustments, safety, Renart diagnostic
 - `src/data/` — model constants, references, and version
 - `src/types/` — shared TypeScript types
 - `src/storage/` — `localStorage` persistence and schema migration

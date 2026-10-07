@@ -24,7 +24,7 @@ export function ReferencesPanel({ open, onClose }: ReferencesPanelProps) {
           References
         </h2>
         <p className={`mt-3 text-[13px] leading-relaxed ${mutedText}`}>
-          These are the sources behind Version 2.1. A direct measurement is not the same thing as
+          These are the sources behind Version 2.2. A direct measurement is not the same thing as
           a model inference, and a calibration percentage is not a published formula.
         </p>
         <div className="mt-4 space-y-5">

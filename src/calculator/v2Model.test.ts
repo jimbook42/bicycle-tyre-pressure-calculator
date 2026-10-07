@@ -19,8 +19,11 @@ import {
   SURFACE_FACTOR_VERY_ROUGH_GRAVEL,
   WET_FACTOR_BOUND,
   WET_PRESSURE_FACTOR,
+  LOAD_SPLIT_RESPONSE,
 } from '../data/v21ModelConstants'
 import { RENART_ALPHA, TUBE_COEFFICIENTS } from '../data/v2ModelConstants'
+import { effectiveLoadFraction } from './loadDistribution'
+import { SCHEMA_VERSION } from '../storage/localStore'
 import { renartGaugePressurePa, renartGeometry } from './renart'
 import type { CalculatorInput, RideFeedback, RideFeel, RideType } from '../types'
 
@@ -102,9 +105,11 @@ describe('V2.1 Berto baseline', () => {
         advanced: { rimType: 'hooked', frontLoadPercent: 100 },
       }),
     )
-    expect(kpaToPsi(result.front.bertoBaselineKpa)).toBeCloseTo(bertoPsi, 4)
+    const dampedLoadKg = loadKg * effectiveLoadFraction(1)
+    expect(kpaToPsi(result.front.bertoBaselineKpa)).toBeCloseTo(bertoRegressionPsi(dampedLoadKg, 37.5), 4)
     expect(result.front.extrapolated).toBe(true)
-    expect(kpaToPsi(result.front.targetKpa)).toBeCloseTo(bertoPsi, 4)
+    expect(kpaToPsi(result.front.targetKpa)).toBeCloseTo(kpaToPsi(result.front.bertoBaselineKpa), 4)
+    expect(kpaToPsi(result.front.bertoBaselineKpa)).not.toBeCloseTo(bertoPsi, 0)
   })
 
   it('raises pressure with wheel load and lowers it with width', () => {
@@ -329,9 +334,10 @@ describe('V2.1 safety, temperature, and personalisation', () => {
     expect(weather.front!.targetRidingGaugeKpa).toBeCloseTo(riding.front.clampedKpa, 4)
     expect(weather.front!.coldInflationGaugeKpa).toBeCloseTo(pump, 4)
     expect(riding.front.bertoBaselineKpa).toBeCloseTo(
-      bertoBaseline(riding.front.wheelLoadKg, 28).kpa,
+      bertoBaseline(riding.front.effectiveLoadKg, 28).kpa,
       4,
     )
+    expect(riding.front.effectiveLoadKg).not.toBeCloseTo(riding.front.wheelLoadKg, 1)
   })
 
   it('keeps personalisation bounded and leaves the empirical baseline identifiable', () => {
@@ -373,5 +379,128 @@ describe('V2.1 safety, temperature, and personalisation', () => {
     expect(systemWeightKg(withPack)).toBe(88)
     expect(calculatePressure(withPack).front.targetKpa).toBeGreaterThan(at('road').front.targetKpa)
     expect(surfaceCondition('road', 0).factor).toBe(1)
+  })
+})
+
+describe('V2.2 damped front/rear load response', () => {
+  function atSplit(frontPercent: number, overrides: Partial<CalculatorInput> = {}) {
+    return calculatePressure(
+      input({
+        ...overrides,
+        advanced: { rimType: 'hooked', frontLoadPercent: frontPercent, ...overrides.advanced },
+        ride: { type: 'road', gravelPercent: 0, packWeightKg: 0, moisture: 'dry', ...overrides.ride },
+        tyres: { frontWidthMm: 28, rearWidthMm: 28, tubeType: 'tubeless', ...overrides.tyres },
+      }),
+    )
+  }
+
+  function gapPsi(frontPercent: number) {
+    const result = atSplit(frontPercent)
+    return kpaToPsi(result.rear.bertoBaselineKpa) - kpaToPsi(result.front.bertoBaselineKpa)
+  }
+
+  it('keeps 50/50 on the V2.1 even-load baseline', () => {
+    const even = atSplit(50)
+    const halfKg = even.systemWeightKg / 2
+    expect(even.front.bertoBaselineKpa).toBeCloseTo(even.rear.bertoBaselineKpa, 6)
+    expect(even.front.neutralBaselineKpa).toBeCloseTo(even.front.bertoBaselineKpa, 6)
+    expect(even.front.bertoBaselineKpa).toBeCloseTo(bertoBaseline(halfKg, 28).kpa, 5)
+    expect(even.front.effectiveLoadKg).toBeCloseTo(halfKg, 5)
+    expect(even.front.wheelLoadKg).toBeCloseTo(halfKg, 5)
+    expect(even.front.targetKpa).toBeCloseTo(even.front.bertoBaselineKpa, 5)
+    expect(even.front.clampedKpa).toBeCloseTo(even.front.targetKpa, 5)
+  })
+
+  it('grows the pressure gap continuously and keeps it below a direct load translation', () => {
+    expect(LOAD_SPLIT_RESPONSE).toBe(0.5)
+    expect(gapPsi(50)).toBeCloseTo(0, 5)
+    expect(gapPsi(45)).toBeGreaterThan(gapPsi(50))
+    expect(gapPsi(42)).toBeGreaterThan(gapPsi(45))
+    expect(gapPsi(40)).toBeGreaterThan(gapPsi(42))
+    expect(gapPsi(35)).toBeGreaterThan(gapPsi(40))
+
+    const systemKg = 84
+    const directGap =
+      bertoRegressionPsi(0.6 * systemKg, 28) - bertoRegressionPsi(0.4 * systemKg, 28)
+    const dampedGap = gapPsi(40)
+    expect(dampedGap / directGap).toBeCloseTo(LOAD_SPLIT_RESPONSE, 5)
+    expect(dampedGap).toBeGreaterThan(8)
+    expect(dampedGap).toBeLessThan(directGap)
+
+    const rearBias = atSplit(40)
+    expect(rearBias.front.wheelLoadKg / rearBias.systemWeightKg).toBeCloseTo(0.4, 5)
+    expect(rearBias.effectiveFrontLoadPercent).toBeCloseTo(45, 5)
+    expect(rearBias.front.bertoBaselineKpa).toBeGreaterThan(
+      bertoBaseline(0.4 * systemKg, 28).kpa,
+    )
+    expect(rearBias.rear.bertoBaselineKpa).toBeLessThan(bertoBaseline(0.6 * systemKg, 28).kpa)
+    expect(kpaToPsi(rearBias.front.bertoBaselineKpa)).toBeGreaterThan(50)
+    expect(kpaToPsi(rearBias.rear.bertoBaselineKpa)).toBeLessThan(80)
+  })
+
+  it('swaps direction when the static split swaps, and still answers mass and width', () => {
+    const rearBias = atSplit(40)
+    const frontBias = atSplit(60)
+    expect(frontBias.front.bertoBaselineKpa).toBeCloseTo(rearBias.rear.bertoBaselineKpa, 5)
+    expect(frontBias.rear.bertoBaselineKpa).toBeCloseTo(rearBias.front.bertoBaselineKpa, 5)
+    expect(gapPsi(55)).toBeLessThan(0)
+    expect(Math.abs(gapPsi(55))).toBeCloseTo(gapPsi(45), 5)
+    expect(Math.abs(gapPsi(60))).toBeCloseTo(gapPsi(40), 5)
+
+    const heavier = atSplit(40, { rider: { weightKg: 95 } })
+    expect(heavier.front.bertoBaselineKpa).toBeGreaterThan(rearBias.front.bertoBaselineKpa)
+    expect(heavier.rear.bertoBaselineKpa).toBeGreaterThan(rearBias.rear.bertoBaselineKpa)
+
+    const wider = atSplit(40, {
+      tyres: { frontWidthMm: 32, rearWidthMm: 32, tubeType: 'tubeless' },
+    })
+    expect(wider.front.bertoBaselineKpa).toBeLessThan(rearBias.front.bertoBaselineKpa)
+    const measured = atSplit(40, { advanced: { rimType: 'hooked', frontMeasuredWidthMm: 32, frontLoadPercent: 40 } })
+    expect(measured.front.widthMeasured).toBe(true)
+    expect(measured.front.bertoBaselineKpa).toBeLessThan(rearBias.front.bertoBaselineKpa)
+    expect(measured.rear.bertoBaselineKpa).toBeCloseTo(rearBias.rear.bertoBaselineKpa, 5)
+  })
+
+  it('applies surface and wet after the load split, then safety and temperature', () => {
+    const dry = atSplit(40)
+    const rough = calculatePressure(
+      input({
+        ride: { type: 'road-rough', gravelPercent: 0, packWeightKg: 0, moisture: 'dry' },
+        advanced: { rimType: 'hooked', frontLoadPercent: 40 },
+      }),
+    )
+    const wet = calculatePressure(
+      input({
+        ride: { type: 'road', gravelPercent: 0, packWeightKg: 0, moisture: 'wet' },
+        advanced: { rimType: 'hooked', frontLoadPercent: 40 },
+      }),
+    )
+    expect(rough.front.bertoBaselineKpa).toBeCloseTo(dry.front.bertoBaselineKpa, 5)
+    expect(rough.front.targetKpa).toBeCloseTo(dry.front.bertoBaselineKpa * SURFACE_FACTOR_ROUGH_ROAD, 5)
+    expect(wet.front.bertoBaselineKpa).toBeCloseTo(dry.front.bertoBaselineKpa, 5)
+    expect(wet.front.targetKpa).toBeCloseTo(dry.front.targetKpa * WET_PRESSURE_FACTOR, 5)
+    expect(wet.rear.targetKpa).toBeCloseTo(dry.rear.targetKpa * WET_PRESSURE_FACTOR, 5)
+
+    const capped = atSplit(40, {
+      advanced: { rimType: 'hooked', frontLoadPercent: 40, rearManufacturerLimits: { maxKpa: psiToKpa(60) } },
+    })
+    expect(capped.rear.clampedToMax).toBe(true)
+    expect(capped.rear.targetKpa).toBeGreaterThan(capped.rear.clampedKpa)
+    expect(capped.front.clampedKpa).toBeCloseTo(dry.front.clampedKpa, 4)
+
+    const pump = coldInflationGaugeKpa(dry.front.clampedKpa, 10, 20)
+    expect(pump).toBeGreaterThan(dry.front.clampedKpa)
+    expect(coldInflationGaugeKpa(dry.front.bertoBaselineKpa, 10, 20)).not.toBeCloseTo(
+      coldInflationGaugeKpa(pump, 10, 20),
+      1,
+    )
+  })
+
+  it('does not change the stored schema or the blank front-load default', () => {
+    expect(SCHEMA_VERSION).toBe(3)
+    const blank = calculatePressure(input())
+    const explicit = atSplit(40)
+    expect(blank.frontLoadPercent).toBe(40)
+    expect(blank.front.bertoBaselineKpa).toBeCloseTo(explicit.front.bertoBaselineKpa, 5)
   })
 })

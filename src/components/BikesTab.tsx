@@ -310,6 +310,9 @@ export function BikesTab({
                 value={selectedBike.advanced.frontLoadPercent}
                 onChange={(e) => onPatchAdvanced({ frontLoadPercent: e.target.value })}
               />
+              <span className={`mt-1 block text-xs ${mutedText}`}>
+                Share of system weight on the front wheel. This is not a pressure split. Blank stays at 40%.
+              </span>
             </label>
             <fieldset className="text-sm">
               <legend className="font-medium">Manufacturer limits (PSI)</legend>

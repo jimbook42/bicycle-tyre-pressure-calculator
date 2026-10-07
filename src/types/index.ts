@@ -85,8 +85,13 @@ export type SurfaceModel = 'road' | 'gravel'
 export interface WheelPressureDetail {
   /** Condition-adjusted pressure before the safety envelope. */
   targetKpa: number
-  /** Empirical Berto-chart baseline, before surface and wet adjustments. */
+  /**
+   * Empirical baseline after the damped load split, before surface and wet.
+   * This is the model target’s starting point, not the safety-capped pressure.
+   */
   bertoBaselineKpa: number
+  /** Berto baseline at an even load split, same tyre width, before damping. */
+  neutralBaselineKpa: number
   surfaceFactor: number
   wetFactor: number
   /** True when measured mounted width was used instead of the labelled width. */
@@ -96,7 +101,10 @@ export interface WheelPressureDetail {
   extrapolationReasons: string[]
   clampedKpa: number
   effectiveWidthMm: number
+  /** Static wheel load from the rider’s front-load setting. Not the regression load. */
   wheelLoadKg: number
+  /** Load passed into the Berto regression after the damped split. */
+  effectiveLoadKg: number
   manufacturerMinKpa?: number
   manufacturerMaxKpa?: number
   clampedToMin: boolean
@@ -114,6 +122,9 @@ export interface PressureResult {
   systemWeightKg: number
   frontLoadPercent: number
   rearLoadPercent: number
+  /** Front share actually used by the empirical baseline. 50 when the static share is 50. */
+  effectiveFrontLoadPercent: number
+  effectiveRearLoadPercent: number
   surfaceModel: SurfaceModel | 'mixed'
   rideType?: RideType
   mixedGravelPercent?: number
@@ -125,12 +136,12 @@ export interface PressureResult {
   surfaceFactor: number
   wetFactor: number
   moisture?: MoistureClass
-  /** Always false in V2.1. Speed is not a production pressure input. */
+  /** Always false in V2.2. Speed is not a production pressure input. */
   speedApplied: false
   tubeCoefficient?: number
   casingCoefficient?: number
   categoryCoefficient?: number
-  /** 2.1 — empirical Berto baseline plus condition adjustments. */
+  /** 2.2 — V2.1 baseline, with a damped front/rear load response. */
   modelVersion?: number
 }
 

@@ -10,6 +10,7 @@ import type {
 } from '../types'
 import { bertoBaseline } from './bertoBaseline'
 import { surfaceCondition, wetPressureFactor } from './conditionModel'
+import { effectiveLoadFraction, NEUTRAL_LOAD_FRACTION } from './loadDistribution'
 import { constructionFactors } from './modifiers'
 import { applySafetyEnvelope, hooklessMaxKpa } from './safetyEnvelope'
 
@@ -33,6 +34,7 @@ function emptyWheel(loadKg: number, widthMm: number): WheelPressureDetail {
   return {
     targetKpa: 0,
     bertoBaselineKpa: 0,
+    neutralBaselineKpa: 0,
     surfaceFactor: 1,
     wetFactor: 1,
     widthMeasured: false,
@@ -41,6 +43,7 @@ function emptyWheel(loadKg: number, widthMm: number): WheelPressureDetail {
     clampedKpa: 0,
     effectiveWidthMm: widthMm,
     wheelLoadKg: loadKg,
+    effectiveLoadKg: loadKg,
     clampedToMin: false,
     clampedToMax: false,
     conflictingLimits: false,
@@ -48,7 +51,9 @@ function emptyWheel(loadKg: number, widthMm: number): WheelPressureDetail {
 }
 
 function wheelPressure(args: {
-  loadKg: number
+  staticLoadKg: number
+  effectiveLoadKg: number
+  neutralLoadKg: number
   nominalWidthMm: number
   measuredWidthMm: number | undefined
   rimType: RimType | undefined
@@ -62,11 +67,12 @@ function wheelPressure(args: {
     Number.isFinite(args.measuredWidthMm) &&
     args.measuredWidthMm > 0
   const widthMm = widthMeasured ? args.measuredWidthMm! : args.nominalWidthMm
-  if (!(widthMm > 0) || !(args.loadKg >= 0) || !Number.isFinite(args.loadKg)) {
-    return emptyWheel(args.loadKg, widthMm)
+  if (!(widthMm > 0) || !(args.effectiveLoadKg >= 0) || !Number.isFinite(args.effectiveLoadKg)) {
+    return emptyWheel(args.staticLoadKg, widthMm)
   }
 
-  const baseline = bertoBaseline(args.loadKg, widthMm)
+  const baseline = bertoBaseline(args.effectiveLoadKg, widthMm)
+  const neutral = bertoBaseline(args.neutralLoadKg, widthMm)
   const targetKpa = baseline.kpa * args.surfaceFactor * args.wetFactor
   const applyHookless = args.rimType !== 'hooked'
   const sectionForHookless = Math.max(args.nominalWidthMm, widthMm)
@@ -81,13 +87,15 @@ function wheelPressure(args: {
   return {
     targetKpa,
     bertoBaselineKpa: baseline.kpa,
+    neutralBaselineKpa: neutral.kpa,
     surfaceFactor: args.surfaceFactor,
     wetFactor: args.wetFactor,
     widthMeasured,
     extrapolated: baseline.extrapolated,
     extrapolationReasons: baseline.reasons,
     effectiveWidthMm: widthMm,
-    wheelLoadKg: args.loadKg,
+    wheelLoadKg: args.staticLoadKg,
+    effectiveLoadKg: args.effectiveLoadKg,
     hooklessChecked: applyHookless,
     ...safety,
   }
@@ -107,9 +115,9 @@ function buildMetadata(input: CalculatorInput, frontPercent: number): string[] {
 }
 
 /**
- * V2.1 starting pressure.
- * Per-wheel load and measured width → Berto-chart regression → surface factor →
- * wet factor → safety envelope.
+ * V2.2 starting pressure.
+ * Static wheel loads → neutral Berto baseline at an even split → damped load
+ * redistribution → surface factor → wet factor → safety envelope.
  * Temperature and personalisation are later steps. Speed, casing, tube type,
  * rim internal width, and wheel diameter do not change this pressure.
  * Renart is not on this path.
@@ -117,6 +125,10 @@ function buildMetadata(input: CalculatorInput, frontPercent: number): string[] {
 export function calculatePressure(input: CalculatorInput): PressureResult {
   const systemKg = systemWeightKg(input)
   const { frontPercent, rearPercent } = loadSplit(input.advanced)
+  const effectiveFrontFraction = effectiveLoadFraction(frontPercent / 100)
+  const effectiveFrontPercent = effectiveFrontFraction * 100
+  const effectiveRearPercent = (1 - effectiveFrontFraction) * 100
+  const neutralLoadKg = systemKg * NEUTRAL_LOAD_FRACTION
   const warnings: string[] = []
   const notes: string[] = []
   const moisture: MoistureClass = input.ride.moisture ?? 'dry'
@@ -147,7 +159,9 @@ export function calculatePressure(input: CalculatorInput): PressureResult {
   }
   const front = wheelPressure({
     ...shared,
-    loadKg: (systemKg * frontPercent) / 100,
+    staticLoadKg: (systemKg * frontPercent) / 100,
+    effectiveLoadKg: systemKg * effectiveFrontFraction,
+    neutralLoadKg,
     nominalWidthMm: input.tyres.frontWidthMm,
     measuredWidthMm: adv?.frontMeasuredWidthMm,
     manufacturerMinKpa: adv?.frontManufacturerLimits?.minKpa,
@@ -155,7 +169,9 @@ export function calculatePressure(input: CalculatorInput): PressureResult {
   })
   const rear = wheelPressure({
     ...shared,
-    loadKg: (systemKg * rearPercent) / 100,
+    staticLoadKg: (systemKg * rearPercent) / 100,
+    effectiveLoadKg: systemKg * (1 - effectiveFrontFraction),
+    neutralLoadKg,
     nominalWidthMm: input.tyres.rearWidthMm,
     measuredWidthMm: adv?.rearMeasuredWidthMm,
     manufacturerMinKpa: adv?.rearManufacturerLimits?.minKpa,
@@ -201,6 +217,11 @@ export function calculatePressure(input: CalculatorInput): PressureResult {
       'This saved commute setting uses the rough-road adjustment. Older commute notes still match this ride type.',
     )
   }
+  if (Math.abs(frontPercent - 50) > 0.05) {
+    notes.push(
+      'Front and rear pressure follow a damped response to the static load split. An even split is unchanged. The gap is smaller than the static load percentages.',
+    )
+  }
 
   return {
     front,
@@ -208,6 +229,8 @@ export function calculatePressure(input: CalculatorInput): PressureResult {
     systemWeightKg: systemKg,
     frontLoadPercent: frontPercent,
     rearLoadPercent: rearPercent,
+    effectiveFrontLoadPercent: effectiveFrontPercent,
+    effectiveRearLoadPercent: effectiveRearPercent,
     surfaceModel: surface.family,
     rideType: input.ride.type,
     mixedGravelPercent: input.ride.type === 'mixed' ? input.ride.gravelPercent : undefined,

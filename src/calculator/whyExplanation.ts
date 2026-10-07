@@ -95,6 +95,11 @@ function safetyText(result: PressureResult, formatPressure: (kpa: number) => str
   return parts.join('. ')
 }
 
+function shareText(percent: number): string {
+  const rounded = Math.round(percent * 10) / 10
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)
+}
+
 function personalisationText(
   context: WhyContext,
   unit: string,
@@ -116,7 +121,7 @@ function personalisationText(
   return `Based on ${count} comparable ride${count === 1 ? '' : 's'}: ${formatOffset(frontPsi, 'front')}, ${formatOffset(rearPsi, 'rear')}. This stays capped so it cannot replace the empirical baseline.`
 }
 
-/** Explains the V2.1 path from load and width to the number on the dial. */
+/** Explains the V2.2 path from load and width to the number on the dial. */
 export function buildWhyLines(context: WhyContext): WhyLine[] {
   const { result } = context
   const unit = unitWord(context.unit)
@@ -129,7 +134,7 @@ export function buildWhyLines(context: WhyContext): WhyLine[] {
     },
     {
       label: 'Wheel loads',
-      text: `Front ${result.front.wheelLoadKg.toFixed(1)} kg (${result.frontLoadPercent}%)\nRear ${result.rear.wheelLoadKg.toFixed(1)} kg (${result.rearLoadPercent}%)\nEach wheel is calculated from its own load. The pressures are not forced into the load ratio.`,
+      text: `Front ${result.front.wheelLoadKg.toFixed(1)} kg (${shareText(result.frontLoadPercent)}% of the system)\nRear ${result.rear.wheelLoadKg.toFixed(1)} kg (${shareText(result.rearLoadPercent)}%)\nThis is the static split from the front-wheel load setting. It is not a pressure split.`,
     },
     { label: 'Tyre width', text: widthText(result) },
   ]
@@ -137,11 +142,19 @@ export function buildWhyLines(context: WhyContext): WhyLine[] {
   const extrapolation = [result.front, result.rear].some((wheel) => wheel.extrapolated)
   lines.push({
     label: 'Empirical baseline',
-    text: `Front ${pressure(result.front.bertoBaselineKpa)}\nRear ${pressure(result.rear.bertoBaselineKpa)}\nCurve fit to the Berto 15% tyre-drop chart for a normal road. This is not Berto’s own formula, and it is a starting region rather than a proven optimum.${
+    text: `An even load split would start at front ${pressure(result.front.neutralBaselineKpa)} and rear ${pressure(result.rear.neutralBaselineKpa)}.\nCurve fit to the Berto 15% tyre-drop chart for a normal road. This is not Berto’s own formula, and it is a starting region rather than a proven optimum.${
       extrapolation
         ? '\nPart of this setup is outside the chart’s measured region, so that baseline is an extrapolation.'
         : ''
     }`,
+  })
+
+  const even = Math.abs(result.frontLoadPercent - 50) < 0.05
+  lines.push({
+    label: 'Load distribution',
+    text: even
+      ? `The static split is even, so both wheels keep that baseline. Front ${pressure(result.front.bertoBaselineKpa)}. Rear ${pressure(result.rear.bertoBaselineKpa)}.`
+      : `Tyre pressure does respond to wheel load, but not in proportion to this ${shareText(result.frontLoadPercent)}/${shareText(result.rearLoadPercent)} static split. Laboratory tyre tests do not show a straight pressure-to-load proportion, and braking moves load forward. The calculator therefore moves halfway from the even split toward the static loads: front ${shareText(result.effectiveFrontLoadPercent)}%, rear ${shareText(result.effectiveRearLoadPercent)}%.\nFront ${pressure(result.front.bertoBaselineKpa)}\nRear ${pressure(result.rear.bertoBaselineKpa)}\nA more rear-biased rider still gets a higher rear starting pressure. The gap is smaller than a direct ${shareText(result.frontLoadPercent)}/${shareText(result.rearLoadPercent)} pressure split. This remains a starting pressure, not a universal optimum.`,
   })
 
   lines.push({
